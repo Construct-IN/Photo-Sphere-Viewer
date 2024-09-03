@@ -7,6 +7,7 @@ import {
   VCard,
   VCardActions,
   VCardText,
+  VCheckbox,
   VCol,
   VDialog,
   VFileInput,
@@ -17,6 +18,7 @@ import {
   VTabs,
   VTabsWindow,
   VTabsWindowItem,
+  VTextarea,
   VTextField,
   VThemeProvider,
 } from 'vuetify/components';
@@ -44,6 +46,7 @@ const vuetify = createVuetify({
     VCard,
     VCardActions,
     VCardText,
+    VCheckbox,
     VCol,
     VDialog,
     VFileInput,
@@ -55,6 +58,7 @@ const vuetify = createVuetify({
     VTabs,
     VTabsWindow,
     VTabsWindowItem,
+    VTextarea,
     VTextField,
     VThemeProvider,
   },
@@ -65,6 +69,24 @@ const vuetify = createVuetify({
     defaultSet: 'mdi',
     aliases,
     sets: { mdi },
+  },
+  defaults: {
+    VTextField: {
+      density: 'compact',
+    },
+    VFileInput: {
+      density: 'compact',
+    },
+    VCheckbox: {
+      density: 'compact',
+    },
+    VNumberInput: {
+      density: 'compact',
+    },
+    VSlider: {
+      showTicks: 'always',
+      thumbLabel: true,
+    }
   },
   theme: {
     themes: {

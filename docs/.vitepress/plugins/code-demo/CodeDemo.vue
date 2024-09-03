@@ -1,8 +1,8 @@
 <template>
     <v-card>
         <v-tabs v-model="currentTab" bg-color="primary">
-            <v-tab value="Result">Result</v-tab>
-            <v-tab value="Source">Source</v-tab>
+            <v-tab value="result">Result</v-tab>
+            <v-tab value="source">Source</v-tab>
 
             <span style="flex: 1"></span>
 
@@ -13,7 +13,7 @@
 
         <v-card-text>
             <v-tabs-window v-model="currentTab">
-                <v-tabs-window-item value="Result">
+                <v-tabs-window-item value="result">
                     <div v-if="!show" class="demo-loader">
                         <v-btn @click="show = true" theme="light" color="primary" size="large">Load demo</v-btn>
                     </div>
@@ -26,7 +26,7 @@
                     </iframe>
                 </v-tabs-window-item>
 
-                <v-tabs-window-item value="Source">
+                <v-tabs-window-item value="source">
                     <div class="demo-source" ref="sourceContainer">
                         <slot name="demo"></slot>
                     </div>
@@ -52,7 +52,7 @@ const props = defineProps<{
 }>();
 
 const show = ref(props.autoload === 'true');
-const currentTab = ref('Result');
+const currentTab = ref('result');
 
 const html = computed(() => decodeURIComponent(props.rawHtml));
 const js = computed(() => decodeURIComponent(props.rawJs));
