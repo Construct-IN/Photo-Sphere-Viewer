@@ -32,21 +32,14 @@ export function getImageHtml(src: string): string {
 
 export function getStyle(defaultStyle: MapHotspotStyle, style: MapHotspotStyle, isHover: boolean) {
     return {
-        image: isHover
-            ? style.hoverImage ?? style.image ?? defaultStyle.hoverImage ?? defaultStyle.image
-            : style.image ?? defaultStyle.image,
-        size: isHover
-            ? style.hoverSize ?? style.size ?? defaultStyle.hoverSize ?? defaultStyle.size
-            : style.size ?? defaultStyle.size,
-        color: isHover
-            ? style.hoverColor ?? style.color ?? defaultStyle.hoverColor ?? defaultStyle.color
-            : style.color ?? defaultStyle.color,
-        borderColor: isHover 
-            ? style.hoverBorderColor ?? defaultStyle.hoverBorderColor 
-            : null,
-        borderSize: isHover 
-            ? style.hoverBorderSize ?? defaultStyle.hoverBorderSize 
-            : null,
+        image: isHover ? style.hoverImage ?? style.image ?? defaultStyle.hoverImage ?? defaultStyle.image : style.image ?? defaultStyle.image,
+        size:
+            (isHover && !style.selected ? style.hoverSize ?? style.size ?? defaultStyle.hoverSize ?? defaultStyle.size : style.size ?? defaultStyle.size) *
+            (style.selected ? 2 : 1),
+        color: isHover ? style.hoverColor ?? style.color ?? defaultStyle.hoverColor ?? defaultStyle.color : style.color ?? defaultStyle.color,
+        borderColor: isHover ? style.hoverBorderColor ?? defaultStyle.hoverBorderColor : style.borderColor ?? null,
+        borderSize: (isHover && !style.selected ? style.hoverBorderSize ?? defaultStyle.hoverBorderSize : style.borderSize ?? null) * (style.selected ? 2 : 1),
+        middleDotColor: style.selected ? style.selectedMiddleDotColor ?? style.middleDotColor : style.middleDotColor ?? null,
     };
 }
 

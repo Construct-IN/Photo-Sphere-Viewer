@@ -297,8 +297,8 @@ export class MapComponent extends AbstractComponent {
         this.container.classList.add(`psv-map--${this.config.position.join('-')}`);
         this.container.classList.add(`psv-map--${this.config.shape}`);
 
-        this.container.style.width = this.config.size;
-        this.container.style.height = this.config.size;
+        this.container.style.width = this.config.width;
+        this.container.style.height = this.config.height;
 
         this.overlay.innerHTML = this.config.overlayImage === null ? ''
             : getImageHtml(this.config.overlayImage ?? (this.config.shape === 'square' ? overlaySquare : overlayRound));
@@ -562,7 +562,7 @@ export class MapComponent extends AbstractComponent {
 
             context.save();
             context.translate(x * SYSTEM.pixelRatio, y * SYSTEM.pixelRatio);
-            canvasShadow(context, PIN_SHADOW_OFFSET, PIN_SHADOW_OFFSET, PIN_SHADOW_BLUR);
+            // canvasShadow(context, PIN_SHADOW_OFFSET, PIN_SHADOW_OFFSET, PIN_SHADOW_BLUR);
             if (image) {
                 drawImageCentered(context, image, style.size);
             } else {
@@ -572,12 +572,19 @@ export class MapComponent extends AbstractComponent {
                 context.fill();
 
                 if (style.borderColor && style.borderSize) {
-                    context.shadowColor = 'transparent';
+                    // context.shadowColor = 'transparent';
                     context.strokeStyle = style.borderColor;
                     context.lineWidth = style.borderSize;
                     context.beginPath();
-                    context.arc(0, 0, ((style.size + style.borderSize) * SYSTEM.pixelRatio) / 2, 0, 2 * Math.PI);
+                    context.arc(0, 0, ((style.size * 0.5 + style.borderSize) * SYSTEM.pixelRatio) / 2, 0, 2 * Math.PI);
                     context.stroke();
+                }
+
+                if (style.middleDotColor) {
+                    context.fillStyle = style.middleDotColor
+                    context.beginPath()
+                    context.arc(0, 0, (style.size * 0.25 * SYSTEM.pixelRatio) / 2, 0, 2 * Math.PI)
+                    context.fill()
                 }
             }
             context.restore();

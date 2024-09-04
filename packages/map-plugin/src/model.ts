@@ -21,6 +21,16 @@ export type MapHotspotStyle = {
      */
     hoverSize?: number;
     /**
+     * Size of the border
+     * @default 0
+     */
+    borderSize?: number;
+    /**
+     * Color of the border
+     * @default 'rgba(255, 255, 255, 0.8)'
+     */
+    borderColor?: string;
+    /**
      * SVG or image URL on mouse hover
      * @default null
      */
@@ -40,6 +50,21 @@ export type MapHotspotStyle = {
      * @default 'rgba(255, 255, 255, 0.6)'
      */
     hoverBorderColor?: string;
+        /**
+     * Flag if is selected
+     * @default false
+     */
+    selected?: boolean;
+    /**
+     * Color of the middle dot
+     * @default 'rgba(255, 255, 255, 0.8)'
+     */
+    selectedMiddleDotColor?: string;
+    /**
+     * Color of the middle dot shown when selected
+     * @default 'rgba(255, 255, 255, 0.8)'
+     */
+    middleDotColor?: string;
 };
 
 export type MapHotspot = (Point | { yaw: number | string; distance: number }) & MapHotspotStyle & {
@@ -77,10 +102,16 @@ export type MapPluginConfig = {
     shape?: 'round' | 'square';
 
     /**
-     * Size of the map
+     * Width of the map
      * @default '200px'
      */
-    size?: string;
+    width?: string;
+
+    /**
+     * Height of the map
+     * @default '200px'
+     */
+    height?: string;
 
     /**
      * Position of the map
