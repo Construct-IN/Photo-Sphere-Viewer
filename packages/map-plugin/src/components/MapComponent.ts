@@ -576,7 +576,7 @@ export class MapComponent extends AbstractComponent {
                     context.strokeStyle = style.borderColor;
                     context.lineWidth = style.borderSize;
                     context.beginPath();
-                    context.arc(0, 0, ((style.size * 0.5 + style.borderSize) * SYSTEM.pixelRatio) / 2, 0, 2 * Math.PI);
+                    context.arc(0, 0, ((style.size * (1 - style.borderSize/style.size) + style.borderSize) * SYSTEM.pixelRatio) / 2, 0, 2 * Math.PI);
                     context.stroke();
                 }
 
