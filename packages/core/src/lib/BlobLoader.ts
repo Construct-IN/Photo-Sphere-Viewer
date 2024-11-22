@@ -5,14 +5,13 @@ import { Loader } from 'three';
  * Also removing all unused features for PSV
  */
 export class BlobLoader extends Loader<Blob, string> {
-
     // @ts-ignore
     load(
         url: string,
         onLoad: (data: Blob) => void,
         onProgress: (event: ProgressEvent) => void,
         onError: (err: unknown) => void,
-        abortSignal?: AbortSignal
+        abortSignal?: AbortSignal,
     ) {
         // create request
         const req = new Request(url, {
@@ -24,7 +23,7 @@ export class BlobLoader extends Loader<Blob, string> {
         fetch(req, {
             signal: abortSignal,
         })
-            .then(response => {
+            .then((response) => {
                 if (response.status === 200 || response.status === 0) {
                     const reader = response.body.getReader();
 
@@ -57,24 +56,22 @@ export class BlobLoader extends Loader<Blob, string> {
                                         onError(err);
                                     });
                             }
-                        }
+                        },
                     });
 
                     return new Response(stream);
-
                 } else {
                     throw new Error(`fetch for "${response.url}" responded with ${response.status}: ${response.statusText}`);
                 }
             })
-            .then(response => {
+            .then((response) => {
                 return response.blob();
             })
-            .then(data => {
+            .then((data) => {
                 onLoad(data);
             })
-            .catch(err => {
+            .catch((err) => {
                 onError(err);
             });
     }
-
 }

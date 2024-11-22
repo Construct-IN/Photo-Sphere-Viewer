@@ -55,7 +55,7 @@ export class ChromaKeyMaterial extends ShaderMaterial {
                 this.uniforms.color.value.set(
                     chromaKey.color.r / 255,
                     chromaKey.color.g / 255,
-                    chromaKey.color.b / 255
+                    chromaKey.color.b / 255,
                 );
             } else {
                 this.uniforms.color.value.set(chromaKey.color ?? 0x00ff00);
@@ -73,6 +73,7 @@ export class ChromaKeyMaterial extends ShaderMaterial {
         super({
             transparent: true,
             depthTest: false,
+            depthWrite: false,
             uniforms: {
                 map: { value: params?.map },
                 repeat: { value: new Vector2(1, 1) },
@@ -83,7 +84,7 @@ export class ChromaKeyMaterial extends ShaderMaterial {
                 similarity: { value: 0.2 },
                 smoothness: { value: 0.2 },
                 spill: { value: 0.1 },
-            } as ShaderUniforms,
+            } satisfies ShaderUniforms,
             vertexShader: chromaKeyVertex,
             fragmentShader: chromaKeyFragment,
         });

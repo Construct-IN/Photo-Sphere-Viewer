@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Generates README files for typedoc
  */
@@ -11,16 +9,16 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 const PACKAGES_DIR = 'packages';
 const PKG_FILE = 'package.json';
 const TYPEDOC_FILE = 'typedoc.json';
-const DIST_DIR = '.typedoc';
+const DIST_DIR = '.tmp/typedoc';
 const DIST_FILE = 'README.md';
 
 (async () => {
-    const packages = readdirSync(PACKAGES_DIR).filter((name) => name !== 'shared');
+    const packages = readdirSync(PACKAGES_DIR).filter(name => name !== 'shared');
 
     const plugins = [];
     const adapters = [];
 
-    for (let name of packages) {
+    for (const name of packages) {
         const pkgFile = path.join(PACKAGES_DIR, name, PKG_FILE);
         const typedocFile = path.join(PACKAGES_DIR, name, TYPEDOC_FILE);
         const distDir = path.join(PACKAGES_DIR, name, DIST_DIR);
@@ -58,11 +56,11 @@ Documentation : ${pkg.homepage}
 
 # Plugins
 
-${plugins.map((plugin) => `- [${plugin}](modules/${plugin}.html)`).join('\n')}
+${plugins.map(plugin => `- [${plugin}](modules/${plugin}.html)`).join('\n')}
 
 # Adapters
 
-${adapters.map((adapter) => `- [${adapter}](modules/${adapter}.html)`).join('\n')}
+${adapters.map(adapter => `- [${adapter}](modules/${adapter}.html)`).join('\n')}
 `.trim();
 
     console.log(`create ${destFile}`);

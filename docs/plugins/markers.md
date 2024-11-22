@@ -9,8 +9,6 @@ Displays various shapes, images and texts on the viewer.
 This plugin is available in the [@photo-sphere-viewer/markers-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/markers-plugin) package.
 :::
 
-[[toc]]
-
 ## Usage
 
 The plugin provides a powerful markers system allowing to define points of interest on the panorama with optional tooltip and description. Markers can be dynamically added/removed and you can react to user click/tap.
@@ -26,9 +24,11 @@ There are four types of markers :
 Markers can be added at startup with the `markers` option or after load with the various methods.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
+const viewer = new Viewer({
     plugins: [
-        [PhotoSphereViewer.MarkersPlugin, {
+        [MarkersPlugin, {
             markers: [
                 {
                     id: 'new-marker',
@@ -41,7 +41,7 @@ const viewer = new PhotoSphereViewer.Viewer({
     ],
 });
 
-const markersPlugin = viewer.getPlugin(PhotoSphereViewer.MarkersPlugin);
+const markersPlugin = viewer.getPlugin(MarkersPlugin);
 
 markersPlugin.addEventListener('select-marker', ({ marker }) => {
     markersPlugin.updateMarker({
@@ -61,184 +61,12 @@ The following example contains all types of markers. Click anywhere on the panor
 title: PSV Markers Demo
 packages:
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
+<<< ./demos-src/markers.js
+<<< ./demos-src/markers.html
 
-const viewer = new Viewer({
-    container: 'viewer',
-    panorama: baseUrl + 'sphere.jpg',
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-
-    plugins: [
-        [MarkersPlugin, {
-            // list of markers
-            markers: [
-                {
-                    // image marker that opens the panel when clicked
-                    id: 'image',
-                    position: { yaw: 0.32, pitch: 0.11 },
-                    image: baseUrl + 'pictos/pin-blue.png',
-                    size: { width: 32, height: 32 },
-                    anchor: 'bottom center',
-                    zoomLvl: 100,
-                    tooltip: 'A image marker. <b>Click me!</b>',
-                    content: document.getElementById('lorem-content').innerHTML,
-                },
-                {
-                    // image marker rendered in the 3D scene
-                    id: 'imageLayer',
-                    imageLayer: baseUrl + 'pictos/tent.png',
-                    size: { width: 120, height: 94 },
-                    position: { yaw: -0.45, pitch: -0.1 },
-                    tooltip: 'Image embedded in the scene',
-                },
-                {
-                    // html marker with custom style
-                    id: 'text',
-                    position: { yaw: 0, pitch: 0 },
-                    html: 'HTML <b>marker</b> &hearts;',
-                    anchor: 'bottom right',
-                    scale: [0.5, 1.5],
-                    style: {
-                        maxWidth: '100px',
-                        color: 'white',
-                        fontSize: '20px',
-                        fontFamily: 'Helvetica, sans-serif',
-                        textAlign: 'center',
-                    },
-                    tooltip: {
-                        content: 'An HTML marker',
-                        position: 'right',
-                    },
-                },
-                {
-                    // polygon marker
-                    id: 'polygon',
-                    polygon: [
-                        [6.2208, 0.0906],  [0.0443, 0.1028],  [0.2322, 0.0849], [0.4531, 0.0387],
-                        [0.5022, -0.0056], [0.4587, -0.0396], [0.252, -0.0453], [0.0434, -0.0575],
-                        [6.1302, -0.0623], [6.0094, -0.0169], [6.0471, 0.0320], [6.2208, 0.0906],
-                    ],
-                    svgStyle: {
-                        fill: 'rgba(200, 0, 0, 0.2)',
-                        stroke: 'rgba(200, 0, 50, 0.8)',
-                        strokeWidth: '2px',
-                    },
-                    tooltip: {
-                        content: 'A dynamic polygon marker',
-                        position: 'bottom right',
-                    },
-                },
-                {
-                    // polyline marker
-                    id: 'polyline',
-                    polylinePixels: [
-                        [2478, 1635], [2184, 1747], [1674, 1953], [1166, 1852],
-                        [709, 1669], [301, 1519], [94, 1399], [34, 1356],
-                    ],
-                    svgStyle: {
-                        stroke: 'rgba(140, 190, 10, 0.8)',
-                        strokeLinecap: 'round',
-                        strokeLinejoin: 'round',
-                        strokeWidth: '10px',
-                    },
-                    tooltip: 'A dynamic polyline marker',
-                },
-                {
-                    // circle marker
-                    id: 'circle',
-                    circle: 20,
-                    position: { textureX: 2500, textureY: 1200 },
-                    tooltip: 'A circle marker',
-                },
-            ],
-        }],
-    ],
-});
-
-const markersPlugin = viewer.getPlugin(MarkersPlugin);
-
-/**
- * Create a new marker when the user clicks somewhere
- */
-viewer.addEventListener('click', ({ data }) => {
-    if (!data.rightclick) {
-        markersPlugin.addMarker({
-            id: '#' + Math.random(),
-            position: { yaw: data.yaw, pitch: data.pitch },
-            image: baseUrl + 'pictos/pin-red.png',
-            size: { width: 32, height: 32 },
-            anchor: 'bottom center',
-            tooltip: 'Generated pin',
-            data: {
-                generated: true,
-            },
-        });
-    }
-});
-
-/**
- * Delete a generated marker when the user double-clicks on it
- * Or change the image if the user right-clicks on it
- */
-markersPlugin.addEventListener('select-marker', ({ marker, doubleClick, rightClick }) => {
-    if (marker.data?.generated) {
-        if (doubleClick) {
-            markersPlugin.removeMarker(marker);
-        } else if (rightClick) {
-            markersPlugin.updateMarker({
-                id: marker.id,
-                image: baseUrl + 'pictos/pin-blue.png',
-            });
-        }
-    }
-});
-```
-
-```html
-<script type="text/template" id="lorem-content">
-    <h1>HTML Ipsum Presents</h1>
-
-    <p><strong>Pellentesque habitant morbi tristique</strong> senectus et netus et malesuada fames ac turpis egestas.
-      Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam
-      egestas semper. <em>Aenean ultricies mi vitae est.</em> Mauris placerat eleifend leo. Quisque sit amet est et
-      sapien ullamcorper pharetra. Vestibulum erat wisi, condimentum sed, <code>commodo vitae</code>, ornare sit amet,
-      wisi. Aenean fermentum, elit eget tincidunt condimentum, eros ipsum rutrum orci, sagittis tempus lacus enim ac
-      dui. <a href="#">Donec non enim</a> in turpis pulvinar facilisis. Ut felis.</p>
-
-      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d54469.108394396746!2d6.9617553450295855!3d44.151844842645815!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12cdaf6678af879d%3A0xcabc15aee7b89386!2sParc%20national%20du%20Mercantour!5e0!3m2!1sfr!2sfr!4v1611498421096!5m2!1sfr!2sfr" width="100%" height="300" frameborder="0" style="border:0;" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe>
-
-    <h2>Header Level 2</h2>
-
-    <ol>
-      <li>Lorem ipsum dolor sit amet, consectetuer adipiscing elit.</li>
-      <li>Aliquam tincidunt mauris eu risus.</li>
-    </ol>
-
-    <blockquote><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus magna. Cras in mi at felis aliquet
-      congue. Ut a est eget ligula molestie gravida. Curabitur massa. Donec eleifend, libero at sagittis mollis,
-      tellus est malesuada tellus, at luctus turpis elit sit amet quam. Vivamus pretium ornare est.</p></blockquote>
-
-    <h3>Header Level 3</h3>
-
-    <ul>
-      <li>Lorem ipsum dolor sit amet, consectetuer adipiscing elit.</li>
-      <li>Aliquam tincidunt mauris eu risus.</li>
-    </ul>
-</script>
-```
-
-:::
-
-::: tip
-You can try markers live in [the playground](../playground.md).
 :::
 
 ## Markers
@@ -376,7 +204,7 @@ Existing DOM element.
 }
 ```
 
-[Check the demo](../demos//markers//youtube-element.md)
+[Check the demo](../demos/markers/youtube-element.md)
 
 #### `polygon`
 

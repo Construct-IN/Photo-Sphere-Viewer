@@ -11,7 +11,7 @@ export class SettingChangedEvent extends TypedEvent<SettingsPlugin> {
     /** @internal */
     constructor(
         public readonly settingId: string,
-        public readonly settingValue: boolean | string
+        public readonly settingValue: boolean | string,
     ) {
         super(SettingChangedEvent.type);
     }

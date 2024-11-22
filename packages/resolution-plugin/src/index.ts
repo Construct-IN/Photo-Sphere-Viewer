@@ -1,8 +1,9 @@
 import { DEFAULTS } from '@photo-sphere-viewer/core';
 import * as events from './events';
+import { ResolutionPlugin } from './ResolutionPlugin';
 
-DEFAULTS.lang.resolution = 'Quality';
+DEFAULTS.lang[ResolutionPlugin.id] = 'Quality';
 
-export { ResolutionPlugin } from './ResolutionPlugin';
+export { ResolutionPlugin };
 export * from './model';
 export { events };

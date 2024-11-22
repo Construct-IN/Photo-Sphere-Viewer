@@ -7,7 +7,7 @@ on:
 
 jobs:
   close:
-    if: github.repository == 'mistic100/Photo-Sphere-Viewer'
+    if: ${{ github.repository == 'mistic100/Photo-Sphere-Viewer' }}
 
     runs-on: ubuntu-latest
 
@@ -25,4 +25,4 @@ jobs:
         with:
           milestone: ${{ steps.close.outputs.milestone_id }}
           body: |
-            This feature/bug fix has been released in [version ${{ github.ref_name }}](https://github.com/mistic100/Photo-Sphere-Viewer/releases/tag/${{ github.ref_name }}).
+            This feature/bug fix has been released in [version ${{ github.ref_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}).

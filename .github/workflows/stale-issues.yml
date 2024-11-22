@@ -1,4 +1,5 @@
 name: stale-issues
+run-name: Update stale issues
 
 on:
   schedule:
@@ -11,14 +12,14 @@ permissions:
 
 jobs:
   stale-awaiting-answer:
-    if: github.repository == 'mistic100/Photo-Sphere-Viewer'
+    if: ${{ github.repository == 'mistic100/Photo-Sphere-Viewer' }}
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/stale@v9
         with:
-          any-of-labels: 'awaiting answer'
+          any-of-labels: 'awaiting answer,missing demo'
           days-before-stale: 7
           days-before-close: 7
           stale-issue-message: |
@@ -27,7 +28,7 @@ jobs:
             This pulll request has been automatically marked as stale because not enough information was provided. It will be closed if no further activity occurs.
   
   stale-help-wanted:
-    if: github.repository == 'mistic100/Photo-Sphere-Viewer'
+    if: ${{ github.repository == 'mistic100/Photo-Sphere-Viewer' }}
 
     runs-on: ubuntu-latest
 

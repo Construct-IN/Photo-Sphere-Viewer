@@ -1,10 +1,8 @@
 # Methods
 
-[[toc]]
-
 ## Presentation
 
-Many methods are available to control the viewer from your application. The full list of methods is available in the <ApiLink page="classes/Core.Viewer.html"/>.
+Many methods are available to control the viewer from your application. The full list of methods is available in the [API Documentation](/api/classes/Core.Viewer.html){target=_blank}.
 
 ::: tip Modular architecture
 Photo Sphere Viewer is internally splitted in multiple components, this has an impact on where are located each method. For example, the methods to control the navbar are in the `navbar` object.
@@ -57,7 +55,7 @@ Remove the viewer from the page and free the memory used by Three.js.
 
 ### `getPlugin(pluginId): PluginInstance`
 
-Return the instance of plugin, more details on [the dedicated page](../plugins/README.md).
+Return the instance of plugin, more details on [the dedicated page](../plugins/).
 
 ### `getPosition(): Position`
 
@@ -99,7 +97,7 @@ viewer.setOptions({
 
 ### `setPanorama(panorama[, options]): Promise`
 
-Change the panorama image with an optional transition animation (enabled by default). See all options in the <ApiLink page="types/Core.PanoramaOptions.html"/>.
+Change the panorama image with an optional transition animation (enabled by default). See all options in the [API Documentation](/api/types/Core.PanoramaOptions.html){target=_blank}.
 
 The `speed` option is either a duration in milliseconds or a string containing the speed in revolutions per minute (`2rpm`).
 

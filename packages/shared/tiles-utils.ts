@@ -13,8 +13,8 @@ export function checkTilesLevels(levels: Array<{ zoomRange: [number, number] }>)
         }
         if (level.zoomRange[0] >= level.zoomRange[1]
             || level.zoomRange[0] !== previous
-            || i === 0 && level.zoomRange[0] !== 0
-            || i === levels.length - 1 && level.zoomRange[1] !== 100) {
+            || (i === 0 && level.zoomRange[0] !== 0)
+            || (i === levels.length - 1 && level.zoomRange[1] !== 100)) {
             throw new PSVError(`Tiles levels' "zoomRange" are not orderer or are not covering the whole 0-100 range`);
         }
         previous = level.zoomRange[1];
@@ -23,7 +23,7 @@ export function checkTilesLevels(levels: Array<{ zoomRange: [number, number] }>)
 
 export function getTileIndexByZoomLevel<T extends { zoomRange: [number, number] }>(
     levels: T[],
-    zoomLevel: number
+    zoomLevel: number,
 ): number {
     return levels.findIndex((level) => {
         return zoomLevel >= level.zoomRange[0] && zoomLevel <= level.zoomRange[1];
@@ -35,9 +35,7 @@ export function getTileIndexByZoomLevel<T extends { zoomRange: [number, number] 
  * @internal
  */
 export function buildErrorMaterial(): MeshBasicMaterial {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    const canvas = new OffscreenCanvas(512, 512);
 
     const ctx = canvas.getContext('2d');
 
@@ -60,6 +58,7 @@ export function createWireFrame(geometry: BufferGeometry): Object3D {
     const wireframe = new WireframeGeometry(geometry);
     const line = new LineSegments<WireframeGeometry, Material>(wireframe);
     line.material.depthTest = false;
+    line.material.depthWrite = false;
     line.material.opacity = 0.25;
     line.material.transparent = true;
     return line;

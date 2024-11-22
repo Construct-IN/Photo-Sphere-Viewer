@@ -220,15 +220,20 @@ export type VirtualTourPluginConfig = {
     transitionOptions?:
         | Pick<VirtualTourTransitionOptions, 'showLoader' | 'speed' | 'fadeIn' | 'rotation'>
         | ((
-              toNode: VirtualTourNode,
-              fromNode?: VirtualTourNode,
-              fromLink?: VirtualTourLink
-          ) => VirtualTourTransitionOptions);
+            toNode: VirtualTourNode,
+            fromNode?: VirtualTourNode,
+            fromLink?: VirtualTourLink
+        ) => VirtualTourTransitionOptions);
     /**
      * if the Compass plugin is enabled, displays the links on the compass
      * @default true
      */
     linksOnCompass?: boolean;
+    /**
+     * display a tooltip on each link, by default it contains "name" + "thumbnail" + "caption"
+     * @default true
+     */
+    showLinkTooltip?: boolean;
     /**
      * callback to modify the content of the tooltip
      */

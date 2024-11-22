@@ -9,11 +9,13 @@ autoload: true
 title: PSV Marker layers Demo
 packages:
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js{17-21}
+```js{20-24}
+import { Viewer } from '@photo-sphere-viewer/core';
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const viewer = new Viewer({

@@ -1,5 +1,5 @@
 import type { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
-import type { Position, Viewer } from '@photo-sphere-viewer/core';
+import type { PanoData, Position, Viewer } from '@photo-sphere-viewer/core';
 import { AbstractConfigurablePlugin, events, utils } from '@photo-sphere-viewer/core';
 import { MathUtils } from 'three';
 import { Range, UpdatableVisibleRangePluginConfig, VisibleRangePluginConfig } from './model';
@@ -136,7 +136,7 @@ export class VisibleRangePlugin extends AbstractConfigurablePlugin<
 
         // vertical range is between -PI/2 and PI/2
         if (range) {
-            this.config.verticalRange = range.map((angle) => utils.parseAngle(angle, true)) as any;
+            this.config.verticalRange = range.map(angle => utils.parseAngle(angle, true)) as any;
 
             if (this.config.verticalRange[0] > this.config.verticalRange[1]) {
                 utils.logWarn('vertical range values must be ordered');
@@ -163,7 +163,7 @@ export class VisibleRangePlugin extends AbstractConfigurablePlugin<
 
         // horizontal range is between 0 and 2*PI
         if (range) {
-            this.config.horizontalRange = range.map((angle) => utils.parseAngle(angle)) as any;
+            this.config.horizontalRange = range.map(angle => utils.parseAngle(angle)) as any;
 
             if (this.viewer.state.ready) {
                 this.__moveToRange();
@@ -177,17 +177,17 @@ export class VisibleRangePlugin extends AbstractConfigurablePlugin<
      * Changes the ranges according the current panorama cropping data
      */
     setRangesFromPanoData() {
-        if (this.viewer.state.textureData.panoData) {
-            this.setVerticalRange(this.__getPanoVerticalRange());
-            this.setHorizontalRange(this.__getPanoHorizontalRange());
+        const panoData = this.viewer.state.textureData.panoData as PanoData;
+        if (panoData?.isEquirectangular) {
+            this.setVerticalRange(this.__getPanoVerticalRange(panoData));
+            this.setHorizontalRange(this.__getPanoHorizontalRange(panoData));
         }
     }
 
     /**
      * Gets the vertical range defined by the viewer's panoData
      */
-    private __getPanoVerticalRange(): Range {
-        const p = this.viewer.state.textureData.panoData;
+    private __getPanoVerticalRange(p: PanoData): Range {
         if (p.croppedHeight === p.fullHeight) {
             return null;
         } else {
@@ -199,8 +199,7 @@ export class VisibleRangePlugin extends AbstractConfigurablePlugin<
     /**
      * Gets the horizontal range defined by the viewer's panoData
      */
-    private __getPanoHorizontalRange(): Range {
-        const p = this.viewer.state.textureData.panoData;
+    private __getPanoHorizontalRange(p: PanoData): Range {
         if (p.croppedWidth === p.fullWidth) {
             return null;
         } else {
@@ -221,7 +220,7 @@ export class VisibleRangePlugin extends AbstractConfigurablePlugin<
      */
     private __applyRanges(
         position: Position = this.viewer.getPosition(),
-        zoomLevel: number = this.viewer.getZoomLevel()
+        zoomLevel: number = this.viewer.getZoomLevel(),
     ): RangeResult {
         const rangedPosition: Position = { yaw: position.yaw, pitch: position.pitch };
         const sidesReached: Record<string, true> = {};

@@ -1,18 +1,19 @@
 import type { PanoData, PanoramaPosition, Position, TextureData, Viewer } from '@photo-sphere-viewer/core';
-import { AbstractAdapter, CONSTANTS, EquirectangularAdapter, PSVError, events, utils } from '@photo-sphere-viewer/core';
-import { BufferAttribute, MathUtils, Mesh, MeshBasicMaterial, SphereGeometry, Texture, Vector3 } from 'three';
+import { AbstractAdapter, CONSTANTS, EquirectangularAdapter, events, utils } from '@photo-sphere-viewer/core';
+import { BufferAttribute, Group, Mesh, MeshBasicMaterial, SphereGeometry, Texture, Vector3 } from 'three';
 import { Queue, Task } from '../../shared/Queue';
 import { buildDebugTexture, buildErrorMaterial, createWireFrame } from '../../shared/tiles-utils';
 import {
     EquirectangularMultiTilesPanorama,
     EquirectangularTilesAdapterConfig,
+    EquirectangularTilesPanoData,
     EquirectangularTilesPanorama,
 } from './model';
-import { EquirectangularTileConfig, checkPanoramaConfig, getTileConfig, getTileConfigByIndex } from './utils';
+import { EquirectangularTileConfig, checkPanoramaConfig, getCacheKey, getTileConfig, getTileConfigByIndex } from './utils';
 
 /* the faces of the top and bottom rows are made of a single triangle (3 vertices)
  * all other faces are made of two triangles (6 vertices)
- * bellow is the indexing of each face vertices
+ * below is the indexing of each face vertices
  *
  * first row faces:
  *     ⋀
@@ -42,11 +43,12 @@ import { EquirectangularTileConfig, checkPanoramaConfig, getTileConfig, getTileC
  *     ⋁
  */
 
-type EquirectangularMesh = Mesh<SphereGeometry, MeshBasicMaterial[]>;
-type EquirectangularTexture = TextureData<
+type EquirectangularMesh = Mesh<SphereGeometry, MeshBasicMaterial>;
+type EquirectangularTilesMesh = Mesh<SphereGeometry, MeshBasicMaterial[]>;
+type EquirectangularTilesTextureData = TextureData<
     Texture,
     EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
-    PanoData
+    EquirectangularTilesPanoData
 >;
 type EquirectangularTile = {
     row: number;
@@ -60,7 +62,6 @@ const NB_VERTICES_BY_FACE = 6;
 const NB_VERTICES_BY_SMALL_FACE = 3;
 
 const ATTR_UV = 'uv';
-const ATTR_ORIGINAL_UV = 'originaluv';
 const ATTR_POSITION = 'position';
 
 const ERROR_LEVEL = -1;
@@ -69,25 +70,19 @@ function tileId(tile: EquirectangularTile): string {
     return `${tile.col}x${tile.row}/${tile.config.level}`;
 }
 
-const getConfig = utils.getConfigParser<EquirectangularTilesAdapterConfig>(
-    {
-        backgroundColor: '#000',
-        resolution: 64,
-        showErrorTile: true,
-        baseBlur: true,
-        antialias: true,
-        debug: false,
-        useXmpData: false,
-    },
-    {
-        resolution: (resolution) => {
-            if (!resolution || !MathUtils.isPowerOfTwo(resolution)) {
-                throw new PSVError('EquirectangularTilesAdapter resolution must be power of two');
-            }
-            return resolution;
-        },
-    }
-);
+function meshes(group: Group) {
+    return group.children as [EquirectangularMesh, EquirectangularTilesMesh];
+}
+
+const getConfig = utils.getConfigParser<EquirectangularTilesAdapterConfig>({
+    backgroundColor: null,
+    resolution: 64,
+    showErrorTile: true,
+    baseBlur: true,
+    antialias: true,
+    debug: false,
+    useXmpData: false,
+});
 
 const vertexPosition = new Vector3();
 
@@ -96,8 +91,9 @@ const vertexPosition = new Vector3();
  */
 export class EquirectangularTilesAdapter extends AbstractAdapter<
     EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
+    EquirectangularTilesPanoData,
     Texture,
-    PanoData
+    Group
 > {
     static override readonly id = 'equirectangular-tiles';
     static override readonly VERSION = PKG_VERSION;
@@ -122,7 +118,8 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
         inTransition: false,
     };
 
-    private adapter: EquirectangularAdapter;
+    // @internal
+    public adapter: EquirectangularAdapter;
     private readonly queue = new Queue();
 
     constructor(viewer: Viewer, config: EquirectangularTilesAdapterConfig) {
@@ -130,16 +127,22 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
 
         this.config = getConfig(config);
 
+        this.adapter = new EquirectangularAdapter(this.viewer, {
+            resolution: this.config.resolution,
+            blur: this.config.baseBlur,
+        });
+
         this.SPHERE_SEGMENTS = this.config.resolution;
         this.SPHERE_HORIZONTAL_SEGMENTS = this.SPHERE_SEGMENTS / 2;
-        this.NB_VERTICES = 2 * this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE
+        this.NB_VERTICES
+            = 2 * this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE
             + (this.SPHERE_HORIZONTAL_SEGMENTS - 2) * this.SPHERE_SEGMENTS * NB_VERTICES_BY_FACE;
         this.NB_GROUPS = this.SPHERE_SEGMENTS * this.SPHERE_HORIZONTAL_SEGMENTS;
 
         if (this.viewer.config.requestHeaders) {
             utils.logWarn(
                 'EquirectangularTilesAdapter fallbacks to file loader because "requestHeaders" where provided. '
-                + 'Consider removing "requestHeaders" if you experience performances issues.'
+                + 'Consider removing "requestHeaders" if you experience performances issues.',
             );
         }
     }
@@ -147,19 +150,21 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
     override init() {
         super.init();
 
+        this.viewer.addEventListener(events.TransitionDoneEvent.type, this);
         this.viewer.addEventListener(events.PositionUpdatedEvent.type, this);
         this.viewer.addEventListener(events.ZoomUpdatedEvent.type, this);
     }
 
     override destroy() {
-        this.viewer.addEventListener(events.PositionUpdatedEvent.type, this);
-        this.viewer.addEventListener(events.ZoomUpdatedEvent.type, this);
+        this.viewer.removeEventListener(events.TransitionDoneEvent.type, this);
+        this.viewer.removeEventListener(events.PositionUpdatedEvent.type, this);
+        this.viewer.removeEventListener(events.ZoomUpdatedEvent.type, this);
 
         this.__cleanup();
 
         this.state.errorMaterial?.map?.dispose();
         this.state.errorMaterial?.dispose();
-        this.adapter?.destroy();
+        this.adapter.destroy();
 
         delete this.adapter;
         delete this.state.geom;
@@ -172,8 +177,18 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
      * @internal
      */
     handleEvent(e: Event) {
-        if (e instanceof events.PositionUpdatedEvent || e instanceof events.ZoomUpdatedEvent) {
-            this.__refresh();
+        switch (e.type) {
+            case events.PositionUpdatedEvent.type:
+            case events.ZoomUpdatedEvent.type:
+                this.__refresh();
+                break;
+
+            case events.TransitionDoneEvent.type:
+                this.state.inTransition = false;
+                if ((e as events.TransitionDoneEvent).completed) {
+                    this.__switchMesh(this.viewer.renderer.mesh as Group);
+                }
+                break;
         }
     }
 
@@ -185,23 +200,19 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
         return !!panorama.baseUrl;
     }
 
-    override textureCoordsToSphericalCoords(point: PanoramaPosition, data: PanoData): Position {
-        return this.getAdapter().textureCoordsToSphericalCoords(point, data);
+    override textureCoordsToSphericalCoords(point: PanoramaPosition, data: EquirectangularTilesPanoData): Position {
+        return this.adapter.textureCoordsToSphericalCoords(point, data);
     }
 
-    override sphericalCoordsToTextureCoords(position: Position, data: PanoData): PanoramaPosition {
-        return this.getAdapter().sphericalCoordsToTextureCoords(position, data);
+    override sphericalCoordsToTextureCoords(position: Position, data: EquirectangularTilesPanoData): PanoramaPosition {
+        return this.adapter.sphericalCoordsToTextureCoords(position, data);
     }
 
-    override loadTexture(
+    override async loadTexture(
         panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
-        loader = true
-    ): Promise<EquirectangularTexture> {
-        try {
-            checkPanoramaConfig(panorama, this);
-        } catch (e) {
-            return Promise.reject(e);
-        }
+        loader = true,
+    ): Promise<EquirectangularTilesTextureData> {
+        checkPanoramaConfig(panorama, this);
 
         const firstTile = getTileConfig(panorama, 0, this);
         const panoData: PanoData = {
@@ -218,30 +229,40 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
         };
 
         if (panorama.baseUrl) {
-            return this.getAdapter()
-                .loadTexture(panorama.baseUrl, loader, panorama.basePanoData, false)
-                .then((textureData) => ({
-                    panorama,
-                    panoData,
-                    cacheKey: textureData.cacheKey,
-                    texture: textureData.texture,
-                }));
-        } else {
-            return Promise.resolve({
+            const textureData = await this.adapter.loadTexture(panorama.baseUrl, loader, panorama.basePanoData, true);
+
+            return {
                 panorama,
-                panoData,
-                cacheKey: panorama.tileUrl(0, 0, 0),
+                panoData: {
+                    ...panoData,
+                    baseData: textureData.panoData,
+                },
+                cacheKey: textureData.cacheKey,
+                texture: textureData.texture,
+            };
+        } else {
+            return {
+                panorama,
+                panoData: {
+                    ...panoData,
+                    baseData: null,
+                },
+                cacheKey: getCacheKey(panorama, firstTile),
                 texture: null,
-            });
+            };
         }
     }
 
-    createMesh(): EquirectangularMesh {
+    createMesh(panoData: EquirectangularTilesPanoData): Group {
+        // mesh for the base panorama
+        const baseMesh = this.adapter.createMesh(panoData.baseData ?? panoData);
+
+        // mesh for the tiles
         const geometry = new SphereGeometry(
             CONSTANTS.SPHERE_RADIUS,
             this.SPHERE_SEGMENTS,
             this.SPHERE_HORIZONTAL_SEGMENTS,
-            -Math.PI / 2
+            -Math.PI / 2,
         )
             .scale(-1, 1, 1)
             .toNonIndexed() as SphereGeometry;
@@ -262,64 +283,66 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
             geometry.addGroup(i, NB_VERTICES_BY_SMALL_FACE, k++);
         }
 
-        geometry.setAttribute(ATTR_ORIGINAL_UV, (geometry.getAttribute(ATTR_UV) as BufferAttribute).clone());
+        const materials: MeshBasicMaterial[] = [];
+        const material = new MeshBasicMaterial({
+            opacity: 0,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+        });
+        for (let g = 0; g < this.NB_GROUPS; g++) {
+            materials.push(material);
+        }
 
-        return new Mesh(geometry, []);
+        const tilesMesh = new Mesh(geometry, materials);
+        tilesMesh.renderOrder = 1;
+
+        const group = new Group();
+        group.add(baseMesh);
+        group.add(tilesMesh);
+        return group;
     }
 
     /**
      * Applies the base texture and starts the loading of tiles
      */
-    setTexture(mesh: EquirectangularMesh, textureData: EquirectangularTexture, transition?: boolean) {
-        const { texture } = textureData;
+    setTexture(group: Group, textureData: EquirectangularTilesTextureData, transition: boolean) {
+        const [baseMesh] = meshes(group);
+
+        if (textureData.texture) {
+            this.adapter.setTexture(baseMesh, {
+                panorama: textureData.panorama.baseUrl,
+                texture: textureData.texture,
+                panoData: textureData.panoData.baseData,
+            });
+        } else {
+            baseMesh.visible = false;
+        }
 
         if (transition) {
             this.state.inTransition = true;
-            this.__setTexture(mesh, texture, true);
-            return;
-        }
-
-        this.__cleanup();
-        this.__setTexture(mesh, texture, false);
-
-        this.state.materials = mesh.material;
-        this.state.geom = mesh.geometry;
-        this.state.geom.setAttribute(ATTR_UV, (this.state.geom.getAttribute(ATTR_ORIGINAL_UV) as BufferAttribute).clone());
-
-        if (this.config.debug) {
-            const wireframe = createWireFrame(this.state.geom);
-            this.viewer.renderer.addObject(wireframe);
-            this.viewer.renderer.setSphereCorrection(this.viewer.config.sphereCorrection, wireframe);
-        }
-
-        setTimeout(() => this.__refresh());
-    }
-
-    private __setTexture(mesh: EquirectangularMesh, texture: Texture, transition: boolean) {
-        let material;
-        if (texture) {
-            material = new MeshBasicMaterial({ map: texture });
         } else {
-            material = new MeshBasicMaterial({ color: this.config.backgroundColor });
-        }
-
-        if (transition) {
-            material.depthTest = false;
-            material.depthWrite = false;
-        }
-
-        for (let i = 0; i < this.NB_GROUPS; i++) {
-            mesh.material.push(material);
+            this.__switchMesh(group);
         }
     }
 
-    setTextureOpacity(mesh: EquirectangularMesh, opacity: number) {
-        mesh.material[0].opacity = opacity;
-        mesh.material[0].transparent = opacity < 1;
+    setTextureOpacity(group: Group, opacity: number) {
+        const [baseMesh] = meshes(group);
+        this.adapter.setTextureOpacity(baseMesh, opacity);
     }
 
-    disposeTexture(textureData: TextureData<Texture>) {
-        textureData.texture?.dispose();
+    disposeTexture({ texture }: EquirectangularTilesTextureData) {
+        texture?.dispose();
+    }
+
+    disposeMesh(group: Group) {
+        const [baseMesh, tilesMesh] = meshes(group);
+
+        baseMesh.geometry.dispose();
+        baseMesh.material.dispose();
+
+        tilesMesh.geometry.dispose();
+        tilesMesh.material.forEach(m => m.dispose());
     }
 
     /**
@@ -330,7 +353,7 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
             return;
         }
 
-        const panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama = this.viewer.config.panorama;
+        const panorama = this.viewer.config.panorama as EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama;
         const zoomLevel = this.viewer.getZoomLevel();
         const tileConfig = getTileConfig(panorama, zoomLevel, this);
 
@@ -352,7 +375,8 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
                     segmentIndex = Math.floor((i / 3 - this.SPHERE_SEGMENTS) / 2) + this.SPHERE_SEGMENTS;
                 } else {
                     // last row
-                    segmentIndex = Math.floor((i - this.NB_VERTICES - this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE) / 3)
+                    segmentIndex
+                        = Math.floor((i - this.NB_VERTICES - this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE) / 3)
                         + this.SPHERE_HORIZONTAL_SEGMENTS * (this.SPHERE_SEGMENTS - 1);
                 }
                 const segmentRow = Math.floor(segmentIndex / this.SPHERE_SEGMENTS);
@@ -412,7 +436,7 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
                 this.queue.setPriority(id, tile.angle);
             } else {
                 this.state.tiles[id] = true;
-                this.queue.enqueue(new Task(id, tile.angle, (task) => this.__loadTile(tile, task)));
+                this.queue.enqueue(new Task(id, tile.angle, task => this.__loadTile(tile, task)));
             }
         });
 
@@ -467,11 +491,13 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
                 if (isFirstRow) {
                     firstVertex = faceCol * NB_VERTICES_BY_SMALL_FACE;
                 } else if (isLastRow) {
-                    firstVertex = this.NB_VERTICES
+                    firstVertex
+                        = this.NB_VERTICES
                         - this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE
                         + faceCol * NB_VERTICES_BY_SMALL_FACE;
                 } else {
-                    firstVertex = this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE
+                    firstVertex
+                        = this.SPHERE_SEGMENTS * NB_VERTICES_BY_SMALL_FACE
                         + (faceRow - 1) * this.SPHERE_SEGMENTS * NB_VERTICES_BY_FACE
                         + faceCol * NB_VERTICES_BY_FACE;
                 }
@@ -487,7 +513,7 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
                 this.state.faces[firstVertex] = isError ? ERROR_LEVEL : tile.config.level;
 
                 // swap material
-                const matIndex = this.state.geom.groups.find((g) => g.start === firstVertex).materialIndex;
+                const matIndex = this.state.geom.groups.find(g => g.start === firstVertex).materialIndex;
                 this.state.materials[matIndex] = material;
 
                 // define new uvs
@@ -518,6 +544,23 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
         uvs.needsUpdate = true;
     }
 
+    private __switchMesh(group: Group) {
+        const [, tilesMesh] = meshes(group);
+
+        this.__cleanup();
+
+        this.state.materials = tilesMesh.material;
+        this.state.geom = tilesMesh.geometry;
+
+        if (this.config.debug) {
+            const wireframe = createWireFrame(this.state.geom);
+            this.viewer.renderer.addObject(wireframe);
+            this.viewer.renderer.setSphereCorrection(this.viewer.config.sphereCorrection, wireframe);
+        }
+
+        setTimeout(() => this.__refresh());
+    }
+
     /**
      * Clears loading queue, dispose all materials
      */
@@ -525,26 +568,7 @@ export class EquirectangularTilesAdapter extends AbstractAdapter<
         this.queue.clear();
         this.state.tiles = {};
         this.state.faces = {};
+        this.state.materials = [];
         this.state.inTransition = false;
-
-        this.state.materials.forEach((mat) => {
-            mat?.map?.dispose();
-            mat?.dispose();
-        });
-        this.state.materials.length = 0;
-    }
-
-    /**
-     * @internal
-     */
-    getAdapter() {
-        if (!this.adapter) {
-            this.adapter = new EquirectangularAdapter(this.viewer, {
-                backgroundColor: this.config.backgroundColor,
-                interpolateBackground: false,
-                blur: this.config.baseBlur,
-            });
-        }
-        return this.adapter;
     }
 }

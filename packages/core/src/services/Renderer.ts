@@ -8,10 +8,12 @@ import {
     LinearSRGBColorSpace,
     Matrix4,
     Mesh,
+    MeshBasicMaterial,
     Object3D,
     PerspectiveCamera,
     Raycaster,
     Scene,
+    SphereGeometry,
     Renderer as ThreeRenderer,
     Vector2,
     Vector3,
@@ -31,8 +33,8 @@ import {
     ZoomUpdatedEvent,
 } from '../events';
 import { PanoData, PanoramaOptions, Point, SphereCorrection, TextureData } from '../model';
-import { Animation, isNil } from '../utils';
-import type { Viewer } from '../Viewer';
+import { Animation, isNil, logWarn } from '../utils';
+import { Viewer } from '../Viewer';
 import { AbstractService } from './AbstractService';
 
 // https://discourse.threejs.org/t/updates-to-color-management-in-three-js-r152/50791
@@ -54,8 +56,9 @@ export class Renderer extends AbstractService {
     private readonly scene: Scene;
     /** @internal */
     public readonly camera: PerspectiveCamera;
-    private readonly mesh: Mesh;
-    private readonly meshContainer: Group;
+    /** @internal */
+    public mesh: Object3D;
+    private meshContainer: Group;
     private readonly raycaster: Raycaster;
     private readonly frustum: Frustum;
     private readonly container: HTMLElement;
@@ -83,18 +86,20 @@ export class Renderer extends AbstractService {
         // https://discourse.threejs.org/t/updates-to-color-management-in-three-js-r152/50791
         this.renderer.outputColorSpace = LinearSRGBColorSpace;
         this.renderer.domElement.className = 'psv-canvas';
+        this.renderer.domElement.style.background = this.config.canvasBackground;
 
         this.scene = new Scene();
 
         this.camera = new PerspectiveCamera(50, 16 / 9, 0.1, 2 * SPHERE_RADIUS);
         this.camera.matrixAutoUpdate = false;
 
-        this.mesh = this.viewer.adapter.createMesh();
-        this.mesh.userData = { [VIEWER_DATA]: true };
-
-        this.meshContainer = new Group();
-        this.meshContainer.add(this.mesh);
-        this.scene.add(this.meshContainer);
+        // mesh used to detect clicks on the viewer
+        const raycasterMesh = new Mesh(
+            new SphereGeometry(SPHERE_RADIUS).scale(-1, 1, 1),
+            new MeshBasicMaterial({ opacity: 0, transparent: true, depthTest: false, depthWrite: false }),
+        );
+        raycasterMesh.userData = { [VIEWER_DATA]: true };
+        this.scene.add(raycasterMesh);
 
         this.raycaster = new Raycaster();
         this.frustum = new Frustum();
@@ -118,18 +123,17 @@ export class Renderer extends AbstractService {
      */
     init() {
         this.show();
-        this.renderer.setAnimationLoop((t) => this.__renderLoop(t));
+        this.renderer.setAnimationLoop(t => this.__renderLoop(t));
     }
 
     /**
      * @internal
      */
     override destroy() {
-        // cancel render loop
+        // destroy ThreeJS
         this.renderer.setAnimationLoop(null);
-
-        // destroy ThreeJS view
         this.cleanScene(this.scene);
+        this.renderer.dispose();
 
         // remove container
         this.viewer.container.removeChild(this.container);
@@ -147,7 +151,6 @@ export class Renderer extends AbstractService {
      * @internal
      */
     handleEvent(e: Event) {
-        // prettier-ignore
         switch (e.type) {
             case SizeUpdatedEvent.type: this.__onSizeUpdated(); break;
             case ZoomUpdatedEvent.type: this.__onZoomUpdated(); break;
@@ -156,6 +159,9 @@ export class Renderer extends AbstractService {
             case ConfigChangedEvent.type:
                 if ((e as ConfigChangedEvent).containsOptions('fisheye')) {
                     this.__onPositionUpdated();
+                }
+                if ((e as ConfigChangedEvent).containsOptions('canvasBackground')) {
+                    this.renderer.domElement.style.background = this.config.canvasBackground;
                 }
                 break;
         }
@@ -251,13 +257,25 @@ export class Renderer extends AbstractService {
      * @internal
      */
     setTexture(textureData: TextureData) {
+        if (!this.meshContainer) {
+            this.meshContainer = new Group();
+            this.scene.add(this.meshContainer);
+        }
+
         if (this.state.textureData) {
             this.viewer.adapter.disposeTexture(this.state.textureData);
         }
 
-        this.state.textureData = textureData;
+        if (this.mesh) {
+            this.meshContainer.remove(this.mesh);
+            this.viewer.adapter.disposeMesh(this.mesh);
+        }
 
-        this.viewer.adapter.setTexture(this.mesh, textureData);
+        this.mesh = this.viewer.adapter.createMesh(textureData.panoData);
+        this.viewer.adapter.setTexture(this.mesh, textureData, false);
+        this.meshContainer.add(this.mesh);
+
+        this.state.textureData = textureData;
 
         this.viewer.needsUpdate();
     }
@@ -266,12 +284,20 @@ export class Renderer extends AbstractService {
      * Applies a panorama data pose to a Mesh
      * @internal
      */
-    setPanoramaPose(panoData: PanoData, mesh: Mesh = this.mesh) {
-        // By Google documentation the angles are applied on the camera in order : heading, pitch, roll
-        // here we apply the reverse transformation on the sphere
+    setPanoramaPose(panoData: PanoData, mesh: Object3D = this.mesh) {
         const cleanCorrection = this.viewer.dataHelper.cleanPanoramaPose(panoData);
 
-        mesh.rotation.set(-cleanCorrection.tilt, -cleanCorrection.pan, -cleanCorrection.roll, 'ZXY');
+        const i = (cleanCorrection.pan ? 1 : 0) + (cleanCorrection.tilt ? 1 : 0) + (cleanCorrection.roll ? 1 : 0);
+        if (!Viewer.useNewAnglesOrder && i > 1) {
+            logWarn(`'panoData' Euler angles have changed in version 5.11.0.`);
+            logWarn(`Remove your 'useNewAnglesOrder' override to remove this warning (you might have to adapt your poseHeading/posePitch/poseRoll parameters).`);
+        }
+
+        if (Viewer.useNewAnglesOrder) {
+            mesh.rotation.set(cleanCorrection.tilt, cleanCorrection.pan, cleanCorrection.roll, 'YXZ');
+        } else {
+            mesh.rotation.set(-cleanCorrection.tilt, -cleanCorrection.pan, -cleanCorrection.roll, 'ZXY');
+        }
     }
 
     /**
@@ -281,7 +307,17 @@ export class Renderer extends AbstractService {
     setSphereCorrection(sphereCorrection: SphereCorrection, group: Object3D = this.meshContainer) {
         const cleanCorrection = this.viewer.dataHelper.cleanSphereCorrection(sphereCorrection);
 
-        group.rotation.set(cleanCorrection.tilt, cleanCorrection.pan, cleanCorrection.roll, 'ZXY');
+        const i = (cleanCorrection.pan ? 1 : 0) + (cleanCorrection.tilt ? 1 : 0) + (cleanCorrection.roll ? 1 : 0);
+        if (!Viewer.useNewAnglesOrder && i > 1) {
+            logWarn(`'sphereCorrection' Euler angles have changed in version 5.11.0.`);
+            logWarn(`Remove your 'useNewAnglesOrder' override to remove this warning (you might have to adapt your poseHeading/posePitch/poseRoll parameters).`);
+        }
+
+        if (Viewer.useNewAnglesOrder) {
+            group.rotation.set(cleanCorrection.tilt, cleanCorrection.pan, cleanCorrection.roll, 'YXZ');
+        } else {
+            group.rotation.set(cleanCorrection.tilt, cleanCorrection.pan, cleanCorrection.roll, 'ZXY');
+        }
     }
 
     /**
@@ -294,16 +330,16 @@ export class Renderer extends AbstractService {
 
         const e = new BeforeAnimateEvent(
             positionProvided ? this.viewer.dataHelper.cleanPosition(options.position) : undefined,
-            options.zoom
+            options.zoom,
         );
         this.viewer.dispatchEvent(e);
 
-        const group = new Group();
-        const mesh = this.viewer.adapter.createMesh();
+        const meshContainer = new Group();
+        const mesh = this.viewer.adapter.createMesh(textureData.panoData);
         this.viewer.adapter.setTexture(mesh, textureData, true);
         this.viewer.adapter.setTextureOpacity(mesh, 0);
         this.setPanoramaPose(textureData.panoData, mesh);
-        this.setSphereCorrection(options.sphereCorrection, group);
+        this.setSphereCorrection(options.sphereCorrection, meshContainer);
 
         // rotate the new sphere to make the target position face the camera
         if (positionProvided && options.transition === 'fade-only') {
@@ -311,15 +347,15 @@ export class Renderer extends AbstractService {
 
             // rotation along the vertical axis
             const verticalAxis = new Vector3(0, 1, 0);
-            group.rotateOnWorldAxis(verticalAxis, e.position.yaw - currentPosition.yaw);
+            meshContainer.rotateOnWorldAxis(verticalAxis, e.position.yaw - currentPosition.yaw);
 
             // rotation along the camera horizontal axis
             const horizontalAxis = new Vector3(0, 1, 0).cross(this.camera.getWorldDirection(new Vector3())).normalize();
-            group.rotateOnWorldAxis(horizontalAxis, e.position.pitch - currentPosition.pitch);
+            meshContainer.rotateOnWorldAxis(horizontalAxis, e.position.pitch - currentPosition.pitch);
         }
 
-        group.add(mesh);
-        this.scene.add(group);
+        meshContainer.add(mesh);
+        this.scene.add(meshContainer);
 
         // make sure the new texture is transfered to the GPU before starting the animation
         this.renderer.setRenderTarget(new WebGLRenderTarget<any>());
@@ -329,7 +365,7 @@ export class Renderer extends AbstractService {
         const { duration, properties } = this.viewer.dataHelper.getAnimationProperties(
             options.speed,
             options.transition === true ? e.position : null,
-            e.zoomLevel
+            e.zoomLevel,
         );
 
         const animation = new Animation({
@@ -357,24 +393,31 @@ export class Renderer extends AbstractService {
         });
 
         animation.then((completed) => {
+            meshContainer.remove(mesh);
+            this.scene.remove(meshContainer);
+
             if (completed) {
-                // remove temp sphere and transfer the texture to the main mesh
-                this.setTexture(textureData);
-                this.viewer.adapter.setTextureOpacity(this.mesh, 1);
+                // remove old texture and mesh
+                this.viewer.adapter.disposeTexture(this.state.textureData);
+                this.meshContainer.remove(this.mesh);
+                this.viewer.adapter.disposeMesh(this.mesh);
+
+                // promote new texture and mesh
+                this.mesh = mesh;
+                this.meshContainer.add(mesh);
+                this.state.textureData = textureData;
+
+                // apply rotations
                 this.setPanoramaPose(textureData.panoData);
                 this.setSphereCorrection(options.sphereCorrection);
 
-                // actually rotate the camera
                 if (positionProvided && options.transition === 'fade-only') {
                     this.viewer.rotate(options.position);
                 }
             } else {
                 this.viewer.adapter.disposeTexture(textureData);
+                this.viewer.adapter.disposeMesh(mesh);
             }
-
-            this.scene.remove(group);
-            mesh.geometry.dispose();
-            mesh.geometry = null;
         });
 
         return animation;
@@ -391,8 +434,8 @@ export class Renderer extends AbstractService {
 
         const intersections = this.raycaster
             .intersectObjects(this.scene.children, true)
-            .filter((i) => i.object.visible)
-            .filter((i) => (i.object as Mesh).isMesh && !!i.object.userData) as Array<Intersection<Mesh>>;
+            .filter(i => i.object.visible)
+            .filter(i => (i.object as Mesh).isMesh && !!i.object.userData) as Array<Intersection<Mesh>>;
 
         if (this.customRenderer?.getIntersections) {
             intersections.push(...this.customRenderer.getIntersections(this.raycaster, vector2));

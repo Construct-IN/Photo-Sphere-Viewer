@@ -21,7 +21,7 @@
         </script>
 
         <script type="module">
-            import { Viewer, EquirectangularAdapter } from '@photo-sphere-viewer/core';
+            import { Viewer } from '@photo-sphere-viewer/core';
 
             const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
@@ -31,10 +31,7 @@
                 caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
                 loadingImg: baseUrl + 'loader.gif',
                 defaultZoomLvl: 0,
-                adapter: [EquirectangularAdapter, {
-                    backgroundColor: '#77addb',
-                    interpolateBackground: true,
-                }],
+                canvasBackground: '#77addb',
             });
 
             window.viewer = viewer;

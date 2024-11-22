@@ -18,7 +18,7 @@ export class AbstractZoomButton extends AbstractButton {
     constructor(
         navbar: Navbar,
         icon: string,
-        private direction: ZoomButtonDirection
+        private direction: ZoomButtonDirection,
     ) {
         super(navbar, {
             className: 'psv-zoom-button',
@@ -45,7 +45,6 @@ export class AbstractZoomButton extends AbstractButton {
     }
 
     handleEvent(e: Event) {
-        // prettier-ignore
         switch (e.type) {
             case 'mousedown': this.__onMouseDown(); break;
             case 'mouseup': this.__onMouseUp(); break;

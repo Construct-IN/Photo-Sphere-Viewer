@@ -46,39 +46,6 @@
                                 opacity: .8,
                                 zIndex: 1,
                             },
-                            {
-                                path: baseUrl + 'pictos/tent.png',
-                                opacity: 0.7,
-                                yaw: -0.5,
-                                pitch: 0.19,
-                                width: 0.4,
-                                height: 0.3,
-                                zIndex: 2,
-                            },
-                            {
-                                id: 'rick',
-                                path: baseUrl + 'pictos/rick.webm',
-                                type: 'video',
-                                yaw: 0,
-                                pitch: 0.21,
-                                width: 0.21,
-                                height: 0.42,
-                                zIndex: 3,
-                            },
-                            {
-                                id: 't-rex',
-                                path: baseUrl + 'pictos/t-rex.mp4',
-                                type: 'video',
-                                yaw: 0.25,
-                                pitch: 0.15,
-                                width: 0.3,
-                                height: 0.3,
-                                zIndex: 3,
-                                chromaKey: {
-                                    enabled: true,
-                                    similarity: 0.3,
-                                },
-                            },
                         ],
                     }],
                 ],
@@ -112,15 +79,7 @@
             const overlays = viewer.getPlugin('overlays');
 
             overlays.addEventListener('overlay-click', ({ overlayId }) => {
-                console.log(`click ${overlayId}`);
-                if (overlayId === 'rick') {
-                    const video = overlays.getVideo(overlayId);
-                    if (video.paused) {
-                        video.play();
-                    } else {
-                        video.pause();
-                    }
-                }
+                console.log(`click overlay ${overlayId}`);
             });
 
             function setSphereOverlay(path) {

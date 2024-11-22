@@ -9,8 +9,6 @@ Adds controls to the video [adapters](../guide/adapters/).
 This plugin is available in the [@photo-sphere-viewer/video-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/video-plugin) package.
 :::
 
-[[toc]]
-
 ## Usage
 
 To use this plugin you must also load one of the video adapters : [equirectangular](../guide/adapters/equirectangular-video.md) or [cubemap](../guide/adapters/cubemap-video.md).
@@ -26,12 +24,16 @@ Once enabled it will add various elements to the viewer:
 It also supports advanced autorotate with timed `keypoints`.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.EquirectangularVideoAdapter,
+import { VideoPlugin } from '@photo-sphere-viewer/video-plugin';
+
+const viewer = new Viewer({
+    adapter: EquirectangularVideoAdapter,
     panorama: {
         source: 'path/video.mp4',
     },
-    plugins: [PhotoSphereViewer.VideoPlugin],
+    plugins: [
+        VideoPlugin,
+    ],
 });
 ```
 
@@ -43,76 +45,16 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Video Demo
 packages:
     - name: equirectangular-video-adapter
-      imports: EquirectangularVideoAdapter
     - name: video-plugin
       imports: VideoPlugin
       style: true
     - name: autorotate-plugin
-      imports: AutorotatePlugin
     - name: settings-plugin
-      imports: SettingsPlugin
       style: true
     - name: resolution-plugin
-      imports: ResolutionPlugin
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: [EquirectangularVideoAdapter, {
-        muted: true,
-    }],
-    caption: 'Ayutthaya <b>&copy; meetle</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-    navbar: 'video autorotate caption settings fullscreen',
-
-    plugins: [
-        [VideoPlugin, {
-            keypoints: [
-                { time: 0, position: { yaw: 0, pitch: 0 } },
-                { time: 5, position: { yaw: -Math.PI / 4, pitch: Math.PI / 8 } },
-                { time: 10, position: { yaw: -Math.PI / 2, pitch: 0 } },
-                { time: 15, position: { yaw: (-3 * Math.PI) / 4, pitch: -Math.PI / 8 } },
-                { time: 20, position: { yaw: -Math.PI, pitch: 0 } },
-                { time: 25, position: { yaw: (-5 * Math.PI) / 4, pitch: Math.PI / 8 } },
-                { time: 30, position: { yaw: (-3 * Math.PI) / 2, pitch: 0 } },
-                { time: 35, position: { yaw: (-7 * Math.PI) / 4, pitch: -Math.PI / 8 } },
-            ],
-        }],
-        AutorotatePlugin,
-        SettingsPlugin,
-        [ResolutionPlugin, {
-            defaultResolution: 'HD',
-            resolutions: [
-                {
-                    id: 'UHD',
-                    label: 'Ultra high',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_UHD.mp4' },
-                },
-                {
-                    id: 'FHD',
-                    label: 'High',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_FHD.mp4' },
-                },
-                {
-                    id: 'HD',
-                    label: 'Standard',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_HD.mp4' },
-                },
-                {
-                    id: 'SD',
-                    label: 'Low',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_SD.mp4' },
-                },
-            ],
-        }],
-    ],
-});
-```
+<<< ./demos-src/video.js
 
 :::
 
@@ -172,12 +114,12 @@ _Note: this option is not part of the plugin but is merged with the main [`lang`
 You can offer multiple resolutions of your video with the [ResolutionPlugin](./resolution.md).
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.EquirectangularVideoAdapter,
+const viewer = new Viewer({
+    adapter: EquirectangularVideoAdapter,
     plugins: [
-        PhotoSphereViewer.VideoPlugin,
-        PhotoSphereViewer.SettingsPlugin,
-        [PhotoSphereViewer.ResolutionPlugin, {
+        VideoPlugin,
+        SettingsPlugin,
+        [ResolutionPlugin, {
             defaultResolution: 'FHD',
             resolutions: [
                 {

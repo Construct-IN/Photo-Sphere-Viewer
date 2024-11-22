@@ -8,7 +8,6 @@ import { MarkerCSS3D } from './markers/MarkerCSS3D';
  * @internal
  */
 export class CSS3DContainer {
-
     element: HTMLElement;
 
     private readonly renderer: CSS3DRenderer;
@@ -16,9 +15,8 @@ export class CSS3DContainer {
     private readonly intersectionObserver: IntersectionObserver;
 
     constructor(
-        private viewer: Viewer
+        private viewer: Viewer,
     ) {
-
         this.element = document.createElement('div');
         this.element.className = 'psv-markers-css3d-container';
 
@@ -79,5 +77,4 @@ export class CSS3DContainer {
         this.scene.remove(marker.threeElement);
         this.intersectionObserver.unobserve(marker.domElement);
     }
-
 }

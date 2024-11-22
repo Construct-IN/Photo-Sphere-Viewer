@@ -59,7 +59,7 @@ const getConfig = utils.getConfigParser<MarkersPluginConfig, ParsedMarkersPlugin
                 ...defaultHoverScale,
             };
         },
-    }
+    },
 );
 
 function getMarkerCtor(config: MarkerConfig): typeof Marker {
@@ -114,6 +114,9 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         hoveringMarker: null as Marker,
         // require a 2nd render (only the scene) when 3d markers visibility changes
         needsReRender: false,
+        // use when updating a polygon marker in order to keep the current position
+        lastClientX: null as number,
+        lastClientY: null as number,
     };
 
     private readonly container: HTMLElement;
@@ -232,17 +235,23 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
                 }
                 break;
 
-            case 'mouseenter':
-                this.__onEnterMarker(e as MouseEvent, this.__getTargetMarker(e.target as HTMLElement));
+            case 'mouseenter': {
+                const marker = this.__getTargetMarker(utils.getEventTarget(e));
+                this.__onEnterMarker(e as MouseEvent, marker);
                 break;
+            }
 
-            case 'mouseleave':
-                this.__onLeaveMarker(this.__getTargetMarker(e.target as HTMLElement));
+            case 'mouseleave': {
+                const marker = this.__getTargetMarker(utils.getEventTarget(e));
+                this.__onLeaveMarker(marker);
                 break;
+            }
 
-            case 'mousemove':
-                this.__onHoverMarker(e as MouseEvent, this.__getTargetMarker(e.target as HTMLElement, true));
+            case 'mousemove': {
+                const marker = this.__getTargetMarker(utils.getEventTarget(e), true);
+                this.__onHoverMarker(e as MouseEvent, marker);
                 break;
+            }
 
             case 'contextmenu':
                 e.preventDefault();
@@ -361,7 +370,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         }
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
         }
     }
 
@@ -396,13 +405,13 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         marker.update(config);
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
 
             if (
                 (marker === this.state.hoveringMarker && marker.config.tooltip?.trigger === 'hover')
                 || marker.state.staticTooltip
             ) {
-                marker.showTooltip();
+                marker.showTooltip(this.state.lastClientX, this.state.lastClientY, true);
             }
         }
     }
@@ -435,7 +444,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         delete this.markers[marker.id];
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
         }
     }
 
@@ -443,10 +452,10 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
      * Removes multiple markers
      */
     removeMarkers(markerIds: string[], render = true) {
-        markerIds.forEach((markerId) => this.removeMarker(markerId, false));
+        markerIds.forEach(markerId => this.removeMarker(markerId, false));
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
         }
     }
 
@@ -461,7 +470,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         });
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
         }
     }
 
@@ -474,7 +483,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         });
 
         if (render) {
-            this.__afterChangerMarkers();
+            this.__afterChangeMarkers();
         }
     }
 
@@ -599,7 +608,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
             content: MARKERS_LIST_TEMPLATE(markers, this.viewer.config.lang[MarkersButton.id]),
             noMargin: true,
             clickHandler: (target) => {
-                const li = utils.getClosest(target, 'li');
+                const li = utils.getClosest(target, '.psv-panel-menu-item');
                 const markerId = li ? li.dataset[MARKER_DATA] : undefined;
 
                 if (markerId) {
@@ -685,8 +694,8 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
             return target2 ? (target2 as any)[MARKER_DATA] : undefined;
         } else if (Array.isArray(target)) {
             return target
-                .map((o) => o.userData[MARKER_DATA] as Marker)
-                .filter((m) => !!m)
+                .map(o => o.userData[MARKER_DATA] as Marker)
+                .filter(m => !!m)
                 .sort((a, b) => b.config.zIndex - a.config.zIndex)[0];
         } else {
             return null;
@@ -699,6 +708,8 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
     private __onEnterMarker(e: MouseEvent, marker?: Marker) {
         if (marker) {
             this.state.hoveringMarker = marker;
+            this.state.lastClientX = e.clientX;
+            this.state.lastClientY = e.clientY;
 
             this.dispatchEvent(new EnterMarkerEvent(marker));
 
@@ -745,9 +756,14 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
      * Handles mouse move events, refresh the tooltip for polygon markers
      */
     private __onHoverMarker(e: MouseEvent, marker?: Marker) {
-        if (marker && (marker.isPoly() || marker.is3d() || marker.isCss3d())) {
-            if (marker.config.tooltip?.trigger === 'hover') {
-                marker.showTooltip(e.clientX, e.clientY);
+        if (marker) {
+            this.state.lastClientX = e.clientX;
+            this.state.lastClientY = e.clientY;
+
+            if (marker.isPoly() || marker.is3d() || marker.isCss3d()) {
+                if (marker.config.tooltip?.trigger === 'hover') {
+                    marker.showTooltip(e.clientX, e.clientY);
+                }
             }
         }
     }
@@ -787,7 +803,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
             }
 
             // the marker could have been deleted in an event handler
-            if (this.markers[marker.id]) {
+            if (this.markers[marker.id] && !e.data.rightclick) {
                 if (marker.config.tooltip?.trigger === 'click') {
                     if (marker.tooltip) {
                         this.hideMarkerTooltip(marker.id);
@@ -801,7 +817,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
         }
     }
 
-    private __afterChangerMarkers() {
+    private __afterChangeMarkers() {
         this.__refreshUi();
         this.__checkObjectsObserver();
         this.viewer.needsUpdate();
@@ -812,7 +828,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
      * Updates the visiblity of the panel and the buttons
      */
     private __refreshUi() {
-        const nbMarkers = Object.values(this.markers).filter((m) => !m.config.hideList).length;
+        const nbMarkers = Object.values(this.markers).filter(m => !m.config.hideList).length;
 
         if (nbMarkers === 0) {
             if (this.viewer.panel.isVisible(ID_PANEL_MARKERS_LIST) || this.viewer.panel.isVisible(ID_PANEL_MARKER)) {
@@ -834,7 +850,7 @@ export class MarkersPlugin extends AbstractConfigurablePlugin<
      * Adds or remove the objects observer if there are 3D markers
      */
     private __checkObjectsObserver() {
-        const has3d = Object.values(this.markers).some((marker) => marker.is3d());
+        const has3d = Object.values(this.markers).some(marker => marker.is3d());
 
         if (has3d) {
             this.viewer.observeObjects(MARKER_DATA);

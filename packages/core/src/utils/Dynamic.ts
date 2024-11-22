@@ -38,7 +38,7 @@ export class Dynamic {
             max: number;
             defaultValue: number;
             wrap: boolean;
-        }
+        },
     ) {
         this.min = config.min;
         this.max = config.max;
@@ -143,12 +143,12 @@ export class Dynamic {
         if (this.currentSpeed < targetSpeed) {
             this.currentSpeed = Math.min(
                 targetSpeed,
-                this.currentSpeed + (elapsed / 1000) * this.speed * this.speedMult * 2
+                this.currentSpeed + (elapsed / 1000) * this.speed * this.speedMult * 2,
             );
         } else if (this.currentSpeed > targetSpeed) {
             this.currentSpeed = Math.max(
                 targetSpeed,
-                this.currentSpeed - (elapsed / 1000) * this.speed * this.speedMult * 2
+                this.currentSpeed - (elapsed / 1000) * this.speed * this.speedMult * 2,
             );
         }
 

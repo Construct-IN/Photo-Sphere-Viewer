@@ -9,11 +9,13 @@ autoload: true
 title: PSV Marker custom tooltip Demo
 packages:
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js{12-17}
+```js{15-20}
+import { Viewer } from '@photo-sphere-viewer/core';
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const viewer = new Viewer({

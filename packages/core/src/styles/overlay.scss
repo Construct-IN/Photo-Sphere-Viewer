@@ -13,6 +13,7 @@
     &-image {
         width: 100%;
         text-align: center;
+        color: $psv-overlay-icon-color;
 
         svg {
             width: map.get($psv-overlay-image-size, portrait);

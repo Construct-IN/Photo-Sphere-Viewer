@@ -1,12 +1,9 @@
 import type { AdapterConstructor } from '@photo-sphere-viewer/core';
 import type { CubemapPanorama } from '@photo-sphere-viewer/cubemap-adapter';
-import { ColorRepresentation } from 'three';
 
 export type BaseOverlayConfig = {
     id?: string;
-    /**
-     * @default image
-     */
+    /* @deprecated */
     type?: 'image' | 'video';
     /**
      * @default 1
@@ -23,35 +20,16 @@ export type BaseOverlayConfig = {
  */
 export type SphereOverlayConfig = BaseOverlayConfig & {
     path: string;
-    /**
-     * @default -PI
-     */
-    yaw?: number | string;
-    /**
-     * @default PI / 2
-     */
-    pitch?: number | string;
-    /**
-     * @default 2 * PI
-     */
-    width?: number | string;
-    /**
-     * @default PI
-     */
-    height?: number | string;
-    /**
-     * Will make a color of the image/video transparent
-     */
-    chromaKey?: {
-        /** @default false */
-        enabled: boolean;
-        /** @default 0x00ff00 */
-        color?: ColorRepresentation | { r: number; g: number; b: number };
-        /** @default 0.2 */
-        similarity?: number;
-        /** @default 0.2 */
-        smoothness?: number;
-    };
+    /* @deprecated */
+    yaw?: any;
+    /* @deprecated */
+    pitch?: any;
+    /* @deprecated */
+    width?: any;
+    /* @deprecated */
+    height?: any;
+    /* @deprecated */
+    chromaKey?: any;
 };
 
 /**
@@ -59,17 +37,9 @@ export type SphereOverlayConfig = BaseOverlayConfig & {
  */
 export type CubeOverlayConfig = BaseOverlayConfig & {
     path: CubemapPanorama;
-    type?: 'image';
 };
 
 export type OverlayConfig = SphereOverlayConfig | CubeOverlayConfig;
-
-/**
- * @internal
- */
-export type ParsedOverlayConfig = OverlayConfig & {
-    mode: 'sphere' | 'cube';
-};
 
 export type OverlaysPluginConfig = {
     /**

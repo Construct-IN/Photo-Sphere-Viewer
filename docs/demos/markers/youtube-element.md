@@ -7,14 +7,15 @@ Example usage of `elementLayer` marker to integrate a Youtube video.
 ```yaml
 autoload: true
 title: PSV Marker Youtube Demo
-version: 5.8.0-alpha.1
 packages:
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js{3-4,23}
+```js{6,7,26}
+import { Viewer } from '@photo-sphere-viewer/core';
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const iframe = document.createElement('iframe');

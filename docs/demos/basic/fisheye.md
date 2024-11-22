@@ -9,7 +9,9 @@ autoload: true
 title: PSV Fisheye Demo
 ```
 
-```js{9}
+```js{11}
+import { Viewer } from '@photo-sphere-viewer/core';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 new Viewer({

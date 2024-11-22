@@ -14,17 +14,20 @@ This plugin is available in the [@photo-sphere-viewer/stereo-plugin](https://www
 Once enabled the plugin will add a new "Stereo view" button only shown when the gyroscope API is available. It uses the WakeLock API to prevent the display from dimming or shuting down.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+import { GyroscopePlugin } from '@photo-sphere-viewer/gyroscope-plugin';
+import { StereoPlugin } from '@photo-sphere-viewer/stereo-plugin';
+
+const viewer = new Viewer({
     plugins: [
-        PhotoSphereViewer.GyroscopePlugin, 
-        PhotoSphereViewer.StereoPlugin,
+        GyroscopePlugin, 
+        StereoPlugin,
     ],
 });
 ```
 
 ## Example
 
-<ExternalLink href="/demos/plugin-stereo.html">Open in a new tab</ExternalLink>
+[Open in a new tab](/demos/plugin-stereo.html){target=_blank}
 
 ## Configuration
 

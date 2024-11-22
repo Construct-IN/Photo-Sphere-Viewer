@@ -7,12 +7,14 @@ This adapter is available in the [@photo-sphere-viewer/equirectangular-video-ada
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.EquirectangularVideoAdapter,
+import { EquirectangularVideoAdapter } from '@photo-sphere-viewer/equirectangular-video-adapter';
+
+const viewer = new Viewer({
+    adapter: EquirectangularVideoAdapter,
     panorama: {
-        source: 'path/video.mp4', // also supports webm
+        source: 'path/video.mp4',
     },
-    plugins: [PhotoSphereViewer.VideoPlugin],
+    plugins: [VideoPlugin],
 });
 ```
 
@@ -28,62 +30,14 @@ This adapter requires to use the [VideoPlugin](../../plugins/video.md).
 title: PSV Equirectangular Video Demo
 packages:
     - name: equirectangular-video-adapter
-      imports: EquirectangularVideoAdapter
     - name: video-plugin
-      imports: VideoPlugin
       style: true
     - name: settings-plugin
-      imports: SettingsPlugin
       style: true
     - name: resolution-plugin
-      imports: ResolutionPlugin
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: [EquirectangularVideoAdapter, {
-        muted: true,
-    }],
-    caption: 'Ayutthaya <b>&copy; meetle</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-    navbar: 'video caption settings fullscreen',
-
-    plugins: [
-        VideoPlugin,
-        SettingsPlugin,
-        [ResolutionPlugin, {
-            defaultResolution: 'HD',
-            resolutions: [
-                {
-                    id: 'UHD',
-                    label: 'Ultra high',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_UHD.mp4' },
-                },
-                {
-                    id: 'FHD',
-                    label: 'High',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_FHD.mp4' },
-                },
-                {
-                    id: 'HD',
-                    label: 'Standard',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_HD.mp4' },
-                },
-                {
-                    id: 'SD',
-                    label: 'Low',
-                    panorama: { source: baseUrl + 'equirectangular-video/Ayutthaya_SD.mp4' },
-                },
-            ],
-        }],
-    ],
-});
-```
+<<< ./demos-src/equirectangular-video.js
 
 :::
 
@@ -113,6 +67,41 @@ When using this adapter, the `panorama` option and the `setPanorama()` method ac
 
 #### `source` (required)
 
--   type: `string`
+-   type: `string | MediaStream | HTMLVideoElement`
 
 Path of the video file. The video must not be larger than 4096 pixels or it won't be displayed on handled devices.
+
+It can also be an existing `MediaStream`, for example to display the feed of an USB 360° camera, or a pre-existing `HTMLVideoElement` for more control over video playback.
+
+```js
+const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+const viewer = new Viewer({
+    container: 'photosphere',
+    adapter: [EquirectangularVideoAdapter, {
+        autoplay: true,
+        muted: true,
+    }],
+    panorama: {
+        source: stream,
+    },
+});
+```
+
+#### `data`
+
+-   type: `object | function<Video, PanoData>`
+
+Can by used to define cropping information if the video does not cover a full sphere.
+
+```js
+panorama: {
+  source: 'path/video.mp4',
+  data: {
+    fullWidth: 6000,
+    // "fullHeight" optional, always "fullWidth / 2"
+    croppedX: 1000,
+    croppedY: 500,
+  },
+}
+```

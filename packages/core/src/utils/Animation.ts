@@ -68,15 +68,14 @@ export class Animation<T = any> implements PromiseLike<boolean> {
 
         if (options) {
             if (options.easing) {
-                this.easing =
-                    typeof options.easing === 'function'
-                        ? options.easing
-                        : EASINGS[options.easing] || EASINGS['linear'];
+                this.easing = typeof options.easing === 'function'
+                    ? options.easing
+                    : EASINGS[options.easing] || EASINGS['linear'];
             }
 
             this.delayTimeout = setTimeout(() => {
                 this.delayTimeout = undefined;
-                this.animationFrame = window.requestAnimationFrame((t) => this.__run(t));
+                this.animationFrame = window.requestAnimationFrame(t => this.__run(t));
             }, options.delay || 0);
         } else {
             this.resolved = true;
@@ -108,7 +107,7 @@ export class Animation<T = any> implements PromiseLike<boolean> {
             }
             this.options.onTick(current, progress);
 
-            this.animationFrame = window.requestAnimationFrame((t) => this.__run(t));
+            this.animationFrame = window.requestAnimationFrame(t => this.__run(t));
         } else {
             // call onTick one last time with final values
             for (const [name, prop] of Object.entries(this.options.properties) as Array<[string, PropertyValues]>) {
@@ -130,7 +129,7 @@ export class Animation<T = any> implements PromiseLike<boolean> {
         } else {
             this.cancelled = true;
         }
-        this.callbacks.forEach((cb) => cb(value));
+        this.callbacks.forEach(cb => cb(value));
         this.callbacks.length = 0;
     }
 

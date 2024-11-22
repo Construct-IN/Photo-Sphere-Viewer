@@ -42,7 +42,7 @@ export class TextureLoader extends AbstractService {
      * @internal
      */
     abortLoading() {
-        Object.values(this.abortCtrl).forEach((ctrl) => ctrl.abort());
+        Object.values(this.abortCtrl).forEach(ctrl => ctrl.abort());
         this.abortCtrl = {};
     }
 
@@ -90,7 +90,7 @@ export class TextureLoader extends AbstractService {
                 (err) => {
                     reject(err);
                 },
-                this.__getAbortSignal(cacheKey)
+                this.__getAbortSignal(cacheKey),
             );
         });
     }
@@ -122,11 +122,11 @@ export class TextureLoader extends AbstractService {
                     (err) => {
                         reject(err);
                     },
-                    this.__getAbortSignal(cacheKey)
+                    this.__getAbortSignal(cacheKey),
                 );
             });
         } else {
-            return this.loadFile(url, onProgress, cacheKey).then((blob) => this.blobToImage(blob));
+            return this.loadFile(url, onProgress, cacheKey).then(blob => this.blobToImage(blob));
         }
     }
 
@@ -172,5 +172,4 @@ export class TextureLoader extends AbstractService {
         }
         return null;
     }
-
 }

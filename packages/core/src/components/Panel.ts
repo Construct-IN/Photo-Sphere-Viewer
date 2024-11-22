@@ -1,6 +1,6 @@
 import { CAPTURE_EVENTS_CLASS, ICONS, KEY_CODES } from '../data/constants';
 import { PSVError } from '../PSVError';
-import { toggleClass } from '../utils';
+import { getEventTarget, toggleClass } from '../utils';
 import type { Viewer } from '../Viewer';
 import { HidePanelEvent, KeypressEvent, ShowPanelEvent } from '../events';
 import { AbstractComponent } from './AbstractComponent';
@@ -78,12 +78,9 @@ export class Panel extends AbstractComponent {
         this.content.className = 'psv-panel-content';
         this.container.appendChild(this.content);
 
-        // Stop wheel event bubbling from panel
-        this.container.addEventListener('wheel', (e) => e.stopPropagation());
-
         closeBtn.addEventListener('click', () => this.hide());
 
-        // Event for panel resizing + stop bubling
+        // Event for panel resizing
         resizer.addEventListener('mousedown', this);
         resizer.addEventListener('touchstart', this);
         this.viewer.container.addEventListener('mouseup', this);
@@ -112,7 +109,6 @@ export class Panel extends AbstractComponent {
      * @internal
      */
     handleEvent(e: Event) {
-        // prettier-ignore
         switch (e.type) {
             case 'mousedown': this.__onMouseDown(e as MouseEvent); break;
             case 'touchstart': this.__onTouchStart(e as TouchEvent); break;
@@ -174,11 +170,11 @@ export class Panel extends AbstractComponent {
 
         if (config.clickHandler) {
             this.state.clickHandler = (e) => {
-                (config as PanelConfig).clickHandler(e.target as HTMLElement);
+                config.clickHandler(getEventTarget(e));
             };
             this.state.keyHandler = (e) => {
                 if (e.key === KEY_CODES.Enter) {
-                    (config as PanelConfig).clickHandler(e.target as HTMLElement);
+                    config.clickHandler(getEventTarget(e));
                 }
             };
             this.content.addEventListener('click', this.state.clickHandler);
@@ -192,7 +188,7 @@ export class Panel extends AbstractComponent {
             }
         }
 
-        this.viewer.dispatchEvent(new ShowPanelEvent(config.id));
+        this.viewer.dispatchEvent(new ShowPanelEvent(this.state.contentId));
     }
 
     /**
@@ -210,7 +206,9 @@ export class Panel extends AbstractComponent {
 
             if (this.state.clickHandler) {
                 this.content.removeEventListener('click', this.state.clickHandler);
+                this.content.removeEventListener('keydown', this.state.keyHandler);
                 this.state.clickHandler = null;
+                this.state.keyHandler = null;
             }
 
             this.viewer.dispatchEvent(new HidePanelEvent(contentId));

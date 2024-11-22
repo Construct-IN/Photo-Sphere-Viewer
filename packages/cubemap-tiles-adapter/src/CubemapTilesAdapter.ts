@@ -1,14 +1,19 @@
 import type { PanoramaPosition, Position, TextureData, Viewer } from '@photo-sphere-viewer/core';
 import { AbstractAdapter, CONSTANTS, PSVError, events, utils } from '@photo-sphere-viewer/core';
 import { CubemapAdapter, CubemapData, CubemapFaces } from '@photo-sphere-viewer/cubemap-adapter';
-import { BoxGeometry, BufferAttribute, Mesh, MeshBasicMaterial, Texture, Vector2, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, Texture, Vector3 } from 'three';
 import { Queue, Task } from '../../shared/Queue';
 import { buildDebugTexture, buildErrorMaterial, createWireFrame } from '../../shared/tiles-utils';
-import { CubemapMultiTilesPanorama, CubemapTilesAdapterConfig, CubemapTilesPanorama } from './model';
-import { CubemapTileConfig, checkPanoramaConfig, getTileConfig, getTileConfigByIndex, isTopOrBottom } from './utils';
+import { CubemapMultiTilesPanorama, CubemapTilesAdapterConfig, CubemapTilesPanoData, CubemapTilesPanorama } from './model';
+import { CubemapTileConfig, checkPanoramaConfig, getCacheKey, getTileConfig, getTileConfigByIndex, isTopOrBottom } from './utils';
 
 type CubemapMesh = Mesh<BoxGeometry, MeshBasicMaterial[]>;
-type CubemapTexture = TextureData<Texture[], CubemapTilesPanorama | CubemapMultiTilesPanorama, CubemapData>;
+type CubemapTilesMesh = Mesh<BoxGeometry, MeshBasicMaterial[]>;
+type CubemapTilesTextureData = TextureData<
+    Texture[],
+    CubemapTilesPanorama | CubemapMultiTilesPanorama,
+    CubemapTilesPanoData
+>;
 type CubemapTile = {
     face: number;
     col: number;
@@ -25,7 +30,6 @@ const NB_VERTICES = 6 * NB_VERTICES_BY_PLANE;
 const NB_GROUPS_BY_FACE = CUBE_SEGMENTS * CUBE_SEGMENTS;
 
 const ATTR_UV = 'uv';
-const ATTR_ORIGINAL_UV = 'originaluv';
 const ATTR_POSITION = 'position';
 
 const CUBE_HASHMAP: CubemapFaces[] = ['left', 'right', 'top', 'bottom', 'back', 'front'];
@@ -37,6 +41,10 @@ function tileId(tile: CubemapTile) {
 
 function prettyTileId(tile: CubemapTile) {
     return `${tileId(tile)}\n${CUBE_HASHMAP[tile.face]}`;
+}
+
+function meshes(group: Group) {
+    return group.children as [CubemapMesh, CubemapTilesMesh];
 }
 
 const getConfig = utils.getConfigParser<CubemapTilesAdapterConfig>({
@@ -54,8 +62,9 @@ const vertexPosition = new Vector3();
  */
 export class CubemapTilesAdapter extends AbstractAdapter<
     CubemapTilesPanorama | CubemapMultiTilesPanorama,
+    CubemapTilesPanoData,
     Texture[],
-    CubemapData
+    Group
 > {
     static override readonly id = 'cubemap-tiles';
     static override readonly VERSION = PKG_VERSION;
@@ -73,7 +82,8 @@ export class CubemapTilesAdapter extends AbstractAdapter<
         inTransition: false,
     };
 
-    private adapter: CubemapAdapter;
+    // @internal
+    public adapter: CubemapAdapter;
     private readonly queue = new Queue();
 
     constructor(viewer: Viewer, config: CubemapTilesAdapterConfig) {
@@ -81,10 +91,18 @@ export class CubemapTilesAdapter extends AbstractAdapter<
 
         this.config = getConfig(config);
 
+        if (!CubemapAdapter) {
+            throw new PSVError('CubemapTilesAdapter requires CubemapAdapter');
+        }
+
+        this.adapter = new CubemapAdapter(this.viewer, {
+            blur: this.config.baseBlur,
+        });
+
         if (this.viewer.config.requestHeaders) {
             utils.logWarn(
                 'CubemapTilesAdapter fallbacks to file loader because "requestHeaders" where provided. '
-                + 'Consider removing "requestHeaders" if you experience performances issues.'
+                + 'Consider removing "requestHeaders" if you experience performances issues.',
             );
         }
     }
@@ -92,19 +110,21 @@ export class CubemapTilesAdapter extends AbstractAdapter<
     override init() {
         super.init();
 
+        this.viewer.addEventListener(events.TransitionDoneEvent.type, this);
         this.viewer.addEventListener(events.PositionUpdatedEvent.type, this);
         this.viewer.addEventListener(events.ZoomUpdatedEvent.type, this);
     }
 
     override destroy() {
-        this.viewer.addEventListener(events.PositionUpdatedEvent.type, this);
-        this.viewer.addEventListener(events.ZoomUpdatedEvent.type, this);
+        this.viewer.removeEventListener(events.TransitionDoneEvent.type, this);
+        this.viewer.removeEventListener(events.PositionUpdatedEvent.type, this);
+        this.viewer.removeEventListener(events.ZoomUpdatedEvent.type, this);
 
         this.__cleanup();
 
         this.state.errorMaterial?.map?.dispose();
         this.state.errorMaterial?.dispose();
-        this.adapter?.destroy();
+        this.adapter.destroy();
 
         delete this.adapter;
         delete this.state.geom;
@@ -117,8 +137,18 @@ export class CubemapTilesAdapter extends AbstractAdapter<
      * @internal
      */
     handleEvent(e: Event) {
-        if (e instanceof events.PositionUpdatedEvent || e instanceof events.ZoomUpdatedEvent) {
-            this.__refresh();
+        switch (e.type) {
+            case events.PositionUpdatedEvent.type:
+            case events.ZoomUpdatedEvent.type:
+                this.__refresh();
+                break;
+
+            case events.TransitionDoneEvent.type:
+                this.state.inTransition = false;
+                if ((e as events.TransitionDoneEvent).completed) {
+                    this.__switchMesh(this.viewer.renderer.mesh as Group);
+                }
+                break;
         }
     }
 
@@ -130,20 +160,19 @@ export class CubemapTilesAdapter extends AbstractAdapter<
         return !!panorama.baseUrl;
     }
 
-    override textureCoordsToSphericalCoords(point: PanoramaPosition, data: CubemapData): Position {
-        return this.getAdapter().textureCoordsToSphericalCoords(point, data);
+    override textureCoordsToSphericalCoords(point: PanoramaPosition, data: CubemapTilesPanoData): Position {
+        return this.adapter.textureCoordsToSphericalCoords(point, data);
     }
 
-    override sphericalCoordsToTextureCoords(position: Position, data: CubemapData): PanoramaPosition {
-        return this.getAdapter().sphericalCoordsToTextureCoords(position, data);
+    override sphericalCoordsToTextureCoords(position: Position, data: CubemapTilesPanoData): PanoramaPosition {
+        return this.adapter.sphericalCoordsToTextureCoords(position, data);
     }
 
-    override loadTexture(panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama, loader = true): Promise<CubemapTexture> {
-        try {
-            checkPanoramaConfig(panorama, { CUBE_SEGMENTS });
-        } catch (e) {
-            return Promise.reject(e);
-        }
+    override async loadTexture(
+        panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
+        loader = true,
+    ): Promise<CubemapTilesTextureData> {
+        checkPanoramaConfig(panorama, { CUBE_SEGMENTS });
 
         const firstTile = getTileConfig(panorama, 0, { CUBE_SEGMENTS });
         const panoData: CubemapData = {
@@ -153,25 +182,35 @@ export class CubemapTilesAdapter extends AbstractAdapter<
         };
 
         if (panorama.baseUrl) {
-            return this.getAdapter()
-                .loadTexture(panorama.baseUrl, loader)
-                .then((textureData) => ({
-                    panorama,
-                    panoData,
-                    cacheKey: textureData.cacheKey,
-                    texture: textureData.texture,
-                }));
-        } else {
-            return Promise.resolve({
+            const textureData = await this.adapter.loadTexture(panorama.baseUrl, loader);
+
+            return {
                 panorama,
-                panoData,
-                cacheKey: panorama.tileUrl('front', 0, 0, 0),
+                panoData: {
+                    ...panoData,
+                    baseData: textureData.panoData,
+                },
+                cacheKey: textureData.cacheKey,
+                texture: textureData.texture,
+            };
+        } else {
+            return {
+                panorama,
+                panoData: {
+                    ...panoData,
+                    baseData: null,
+                },
+                cacheKey: getCacheKey(panorama, firstTile),
                 texture: null,
-            });
+            };
         }
     }
 
-    createMesh(): CubemapMesh {
+    createMesh(): Group {
+        // mesh for the base panorama
+        const baseMesh = this.adapter.createMesh();
+
+        // mesh for the tiles
         const cubeSize = CONSTANTS.SPHERE_RADIUS * 2;
         const geometry = new BoxGeometry(cubeSize, cubeSize, cubeSize, CUBE_SEGMENTS, CUBE_SEGMENTS, CUBE_SEGMENTS)
             .scale(1, 1, -1)
@@ -182,71 +221,68 @@ export class CubemapTilesAdapter extends AbstractAdapter<
             geometry.addGroup(i, NB_VERTICES_BY_FACE, k++);
         }
 
-        geometry.setAttribute(ATTR_ORIGINAL_UV, (geometry.getAttribute(ATTR_UV) as BufferAttribute).clone());
+        const materials: MeshBasicMaterial[] = [];
+        const material = new MeshBasicMaterial({
+            opacity: 0,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+        });
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < NB_GROUPS_BY_FACE; j++) {
+                materials.push(material);
+            }
+        }
 
-        return new Mesh(geometry, []);
+        const tilesMesh = new Mesh(geometry, materials);
+        tilesMesh.renderOrder = 1;
+
+        const group = new Group();
+        group.add(baseMesh);
+        group.add(tilesMesh);
+        return group;
     }
 
     /**
      * Applies the base texture and starts the loading of tiles
      */
-    setTexture(mesh: CubemapMesh, textureData: CubemapTexture, transition: boolean) {
+    setTexture(group: Group, textureData: CubemapTilesTextureData, transition: boolean) {
+        const [baseMesh] = meshes(group);
+
+        if (textureData.texture) {
+            this.adapter.setTexture(baseMesh, {
+                panorama: textureData.panorama.baseUrl,
+                texture: textureData.texture,
+                panoData: textureData.panoData.baseData,
+            });
+        } else {
+            baseMesh.visible = false;
+        }
+
         if (transition) {
             this.state.inTransition = true;
-            this.__setTexture(mesh, textureData, true);
-            return;
-        }
-
-        this.__cleanup();
-        this.__setTexture(mesh, textureData, false);
-
-        this.state.materials = mesh.material;
-        this.state.geom = mesh.geometry;
-        this.state.geom.setAttribute(ATTR_UV, (this.state.geom.getAttribute(ATTR_ORIGINAL_UV) as BufferAttribute).clone());
-
-        if (this.config.debug) {
-            const wireframe = createWireFrame(this.state.geom);
-            this.viewer.renderer.addObject(wireframe);
-            this.viewer.renderer.setSphereCorrection(this.viewer.config.sphereCorrection, wireframe);
-        }
-
-        setTimeout(() => this.__refresh());
-    }
-
-    private __setTexture(mesh: CubemapMesh, { texture, panoData }: CubemapTexture, transition: boolean) {
-        for (let i = 0; i < 6; i++) {
-            let material;
-            if (texture) {
-                if (panoData.flipTopBottom && isTopOrBottom(i)) {
-                    texture[i].center = new Vector2(0.5, 0.5);
-                    texture[i].rotation = Math.PI;
-                }
-
-                material = new MeshBasicMaterial({ map: texture[i] });
-            } else {
-                material = new MeshBasicMaterial({ opacity: 0, transparent: true });
-            }
-
-            if (transition) {
-                material.depthTest = false;
-                material.depthWrite = false;
-            }
-
-            for (let j = 0; j < NB_GROUPS_BY_FACE; j++) {
-                mesh.material.push(material);
-            }
+        } else {
+            this.__switchMesh(group);
         }
     }
 
-    setTextureOpacity(mesh: CubemapMesh, opacity: number) {
-        for (let i = 0; i < 6; i++) {
-            mesh.material[i * NB_GROUPS_BY_FACE].opacity = opacity;
-            mesh.material[i * NB_GROUPS_BY_FACE].transparent = opacity < 1;
-        }
+    setTextureOpacity(group: Group, opacity: number) {
+        const [baseMesh] = meshes(group);
+        this.adapter.setTextureOpacity(baseMesh, opacity);
     }
 
-    disposeTexture(textureData: CubemapTexture) {
-        textureData.texture?.forEach((texture) => texture.dispose());
+    disposeTexture({ texture }: CubemapTilesTextureData) {
+        texture.forEach(t => t.dispose());
+    }
+
+    disposeMesh(group: Group) {
+        const [baseMesh, tilesMesh] = meshes(group);
+
+        baseMesh.geometry.dispose();
+        baseMesh.material.forEach(m => m.dispose());
+
+        tilesMesh.geometry.dispose();
+        tilesMesh.material.forEach(m => m.dispose());
     }
 
     /**
@@ -257,8 +293,8 @@ export class CubemapTilesAdapter extends AbstractAdapter<
             return;
         }
 
-        const panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama = this.viewer.state.textureData.panorama;
-        const panoData: CubemapData = this.viewer.state.textureData.panoData;
+        const panorama = this.viewer.state.textureData.panorama as CubemapTilesPanorama | CubemapMultiTilesPanorama;
+        const panoData = this.viewer.state.textureData.panoData as CubemapTilesPanoData;
         const zoomLevel = this.viewer.getZoomLevel();
         const tileConfig = getTileConfig(panorama, zoomLevel, { CUBE_SEGMENTS });
 
@@ -332,7 +368,7 @@ export class CubemapTilesAdapter extends AbstractAdapter<
                 this.queue.setPriority(id, tile.angle);
             } else {
                 this.state.tiles[id] = true;
-                this.queue.enqueue(new Task(id, tile.angle, (task) => this.__loadTile(tile, task)));
+                this.queue.enqueue(new Task(id, tile.angle, task => this.__loadTile(tile, task)));
             }
         });
 
@@ -372,7 +408,7 @@ export class CubemapTilesAdapter extends AbstractAdapter<
      * Applies a new texture to the faces
      */
     private __swapMaterial(tile: CubemapTile, material: MeshBasicMaterial, isError: boolean) {
-        const panoData = this.viewer.state.textureData.panoData as CubemapData;
+        const panoData = this.viewer.state.textureData.panoData as CubemapTilesPanoData;
         const uvs = this.state.geom.getAttribute(ATTR_UV) as BufferAttribute;
 
         for (let c = 0; c < tile.config.facesByTile; c++) {
@@ -395,7 +431,7 @@ export class CubemapTilesAdapter extends AbstractAdapter<
                 this.state.faces[firstVertex] = isError ? ERROR_LEVEL : tile.config.level;
 
                 // swap material
-                const matIndex = this.state.geom.groups.find((g) => g.start === firstVertex).materialIndex;
+                const matIndex = this.state.geom.groups.find(g => g.start === firstVertex).materialIndex;
                 this.state.materials[matIndex] = material;
 
                 // define new uvs
@@ -423,6 +459,23 @@ export class CubemapTilesAdapter extends AbstractAdapter<
         uvs.needsUpdate = true;
     }
 
+    private __switchMesh(group: Group) {
+        const [, tilesMesh] = meshes(group);
+
+        this.__cleanup();
+
+        this.state.materials = tilesMesh.material;
+        this.state.geom = tilesMesh.geometry;
+
+        if (this.config.debug) {
+            const wireframe = createWireFrame(this.state.geom);
+            this.viewer.renderer.addObject(wireframe);
+            this.viewer.renderer.setSphereCorrection(this.viewer.config.sphereCorrection, wireframe);
+        }
+
+        setTimeout(() => this.__refresh());
+    }
+
     /**
      * Clears loading queue, dispose all materials
      */
@@ -430,28 +483,7 @@ export class CubemapTilesAdapter extends AbstractAdapter<
         this.queue.clear();
         this.state.tiles = {};
         this.state.faces = {};
+        this.state.materials = [];
         this.state.inTransition = false;
-
-        this.state.materials.forEach((mat) => {
-            mat?.map?.dispose();
-            mat?.dispose();
-        });
-        this.state.materials.length = 0;
-    }
-
-    /**
-     * @internal
-     */
-    getAdapter() {
-        if (!this.adapter) {
-            if (!CubemapAdapter) {
-                throw new PSVError('CubemapTilesAdapter requires CubemapAdapter');
-            }
-
-            this.adapter = new CubemapAdapter(this.viewer, {
-                blur: this.config.baseBlur,
-            });
-        }
-        return this.adapter;
     }
 }

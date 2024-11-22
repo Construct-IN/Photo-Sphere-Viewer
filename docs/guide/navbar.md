@@ -1,7 +1,5 @@
 # Navbar customization
 
-[[toc]]
-
 ## Core buttons
 
 The `navbar` option is an array which can contain the following elements:
@@ -59,6 +57,8 @@ Unique identifier of the button, usefull when using the `navbar.getButton()` met
 
 Tooltip displayed when the mouse is over the button.
 
+For translation purposes it can be a key in the main [`lang`](./config.md#lang) object.
+
 #### `className`
 
 -   type : `string`
@@ -90,7 +90,7 @@ viewer.navbar.getButton('my-button').show();
 This example uses some core buttons, the caption and a custom button.
 
 ```js
-new PhotoSphereViewer.Viewer({
+new Viewer({
     navbar: [
         'zoom',
         {
@@ -98,7 +98,7 @@ new PhotoSphereViewer.Viewer({
             content: '<svg...>',
             title: 'Hello world',
             className: 'custom-button',
-            onClick: (viewer) => {
+            onClick(viewer) {
                 alert('Hello from custom button');
             },
         },

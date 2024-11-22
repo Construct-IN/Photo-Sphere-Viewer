@@ -8,6 +8,7 @@ export type BaseSetting = {
     id: string;
     /**
      * label of the setting
+     * If can be a key in the global `lang` config
      */
     label: string;
     /**
@@ -64,6 +65,7 @@ export type SettingOption = {
     id: string;
     /**
      * label of the option
+     * If can be a key in the global `lang` config
      */
     label: string;
 };

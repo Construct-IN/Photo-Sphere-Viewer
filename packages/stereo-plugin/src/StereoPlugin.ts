@@ -117,7 +117,7 @@ export class StereoPlugin extends AbstractPlugin<StereoPluginEvents> {
 
         return this.gyroscope.start('fast').then(
             () => {
-                this.viewer.renderer.setCustomRenderer((renderer) => new StereoEffect(renderer));
+                this.viewer.renderer.setCustomRenderer(renderer => new StereoEffect(renderer));
                 this.state.enabled = true;
 
                 this.viewer.navbar.hide();
@@ -140,7 +140,7 @@ export class StereoPlugin extends AbstractPlugin<StereoPluginEvents> {
                 this.__stopWakelock();
                 this.viewer.exitFullscreen();
                 return Promise.reject();
-            }
+            },
         );
     }
 

@@ -1,7 +1,5 @@
 # Migration from v4
 
-[[toc]]
-
 This page is here to help you to migrate from Photo Sphere Viewer 4 to Photo Sphere Viewer 5.
 
 ## Packages, ESM and ES6

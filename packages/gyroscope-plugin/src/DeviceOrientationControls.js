@@ -14,11 +14,11 @@ export class DeviceOrientationControls {
     constructor(object, preferAbsolute) {
         if (window.isSecureContext === false) {
             console.error(
-                'THREE.DeviceOrientationControls: DeviceOrientationEvent is only available in secure contexts (https)'
+                'THREE.DeviceOrientationControls: DeviceOrientationEvent is only available in secure contexts (https)',
             );
         }
 
-        const scope = this;
+        const scope = this; // eslint-disable-line @typescript-eslint/no-this-alias
 
         const EPS = 0.000001;
         const lastQuaternion = new Quaternion();
@@ -40,7 +40,7 @@ export class DeviceOrientationControls {
         };
 
         const onDeviceOrientationAbsoluteChangeEvent = function (event) {
-            // if the 'deviceorientationabsolute' event is supported, automatically remove the 'deviceorientation' listener 
+            // if the 'deviceorientationabsolute' event is supported, automatically remove the 'deviceorientation' listener
             if (nonAbsoluteListener) {
                 window.removeEventListener('deviceorientation', onDeviceOrientationChangeEvent);
                 nonAbsoluteListener = false;
@@ -75,7 +75,7 @@ export class DeviceOrientationControls {
             ) {
                 window.DeviceOrientationEvent.requestPermission()
                     .then(function (response) {
-                        if (response == 'granted') {
+                        if (response === 'granted') {
                             window.addEventListener('orientationchange', onScreenOrientationChangeEvent);
                             window.addEventListener('deviceorientation', onDeviceOrientationChangeEvent);
                             if (preferAbsolute) {

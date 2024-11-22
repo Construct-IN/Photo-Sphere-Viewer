@@ -19,9 +19,9 @@ export class BeforeAnimateEvent extends ViewerEvent {
     /** @internal */
     constructor(
         /** target position, can be modified */
-        public position?: Position,
+        public position: Position | undefined,
         /** target zoom level, can be modified */
-        public zoomLevel?: number
+        public zoomLevel: number | undefined,
     ) {
         super(BeforeAnimateEvent.type, true);
     }
@@ -39,7 +39,7 @@ export class BeforeRenderEvent extends ViewerEvent {
         /** time provided by requestAnimationFrame */
         public readonly timestamp: number,
         /**  time elapsed since the previous frame */
-        public readonly elapsed: number
+        public readonly elapsed: number,
     ) {
         super(BeforeRenderEvent.type);
     }
@@ -55,7 +55,7 @@ export class BeforeRotateEvent extends ViewerEvent {
     /** @internal */
     constructor(
         /** target position, can be modified */
-        public position: Position
+        public position: Position,
     ) {
         super(BeforeRotateEvent.type, true);
     }
@@ -90,7 +90,7 @@ export class ConfigChangedEvent extends ViewerEvent {
      * Checks if at least one of the `options` has been modified
      */
     containsOptions(...options: Array<keyof ViewerConfig>): boolean {
-        return options.some((option) => this.options.includes(option));
+        return options.some(option => this.options.includes(option));
     }
 }
 
@@ -169,7 +169,7 @@ export class HideTooltipEvent extends ViewerEvent {
     /** @internal */
     constructor(
         /** Userdata associated to the tooltip */
-        public readonly tooltipData: TooltipConfig['data']
+        public readonly tooltipData: TooltipConfig['data'],
     ) {
         super(HideTooltipEvent.type);
     }
@@ -183,7 +183,7 @@ export class KeypressEvent extends ViewerEvent {
     override type: 'key-press';
 
     /** @internal */
-    constructor(public readonly key: string) {
+    constructor(public readonly key: string, public readonly originalEvent: KeyboardEvent) {
         super(KeypressEvent.type, true);
     }
 }
@@ -237,9 +237,22 @@ export class PanoramaErrorEvent extends ViewerEvent {
     /** @internal */
     constructor(
         public readonly panorama: any,
-        public readonly error: Error
+        public readonly error: Error,
     ) {
         super(PanoramaErrorEvent.type);
+    }
+}
+
+/**
+ * @event Triggered when the transition to a new panorama is done (complete or not)
+ */
+export class TransitionDoneEvent extends ViewerEvent {
+    static override readonly type = 'transition-done';
+    override type: 'transition-done';
+
+    /** @internal */
+    constructor(public readonly completed: boolean) {
+        super(TransitionDoneEvent.type);
     }
 }
 
@@ -346,7 +359,7 @@ export class ShowTooltipEvent extends ViewerEvent {
         /** Instance of the tooltip */
         public readonly tooltip: Tooltip,
         /** Userdata associated to the tooltip */
-        public readonly tooltipData?: TooltipConfig['data']
+        public readonly tooltipData?: TooltipConfig['data'],
     ) {
         super(ShowTooltipEvent.type);
     }
@@ -403,7 +416,7 @@ export abstract class ObjectEvent extends ViewerEvent {
         public readonly originalEvent: MouseEvent,
         public readonly object: Mesh<any, any>,
         public readonly viewerPoint: Point,
-        public readonly userDataKey: string
+        public readonly userDataKey: string,
     ) {
         super(type);
     }
@@ -471,6 +484,7 @@ export type ViewerEvents =
     | PanoramaLoadEvent
     | PanoramaLoadedEvent
     | PanoramaErrorEvent
+    | TransitionDoneEvent
     | PositionUpdatedEvent
     | RollUpdatedEvent
     | ReadyEvent

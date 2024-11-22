@@ -1,4 +1,4 @@
-import { Mesh } from 'three';
+import { Object3D } from 'three';
 import { PSVError } from '../PSVError';
 import type { Viewer } from '../Viewer';
 import { PanoData, PanoDataProvider, PanoramaPosition, Position, TextureData } from '../model';
@@ -7,10 +7,11 @@ import { checkVersion } from '../utils';
 /**
  * Base class for adapters
  * @template TPanorama type of the panorama object
- * @template TTexture type of the loaded texture
  * @template TData type of the panorama metadata
+ * @template TTexture type of the loaded texture
+ * @template TMesh type of the mesh
  */
-export abstract class AbstractAdapter<TPanorama, TTexture, TData> {
+export abstract class AbstractAdapter<TPanorama, TData, TTexture, TMesh extends Object3D> {
     /**
      * Unique identifier of the adapter
      */
@@ -91,26 +92,30 @@ export abstract class AbstractAdapter<TPanorama, TTexture, TData> {
     /**
      * Creates the mesh
      */
-    abstract createMesh(): Mesh;
+    abstract createMesh(panoData: TData): TMesh;
 
     /**
      * Applies the texture to the mesh
      */
-    abstract setTexture(mesh: Mesh, textureData: TextureData<TTexture, TPanorama, TData>, transition?: boolean): void;
+    abstract setTexture(mesh: TMesh, textureData: TextureData<TTexture, TPanorama, TData>, transition: boolean): void;
 
     /**
      * Changes the opacity of the mesh
      */
-    abstract setTextureOpacity(mesh: Mesh, opacity: number): void;
+    abstract setTextureOpacity(mesh: TMesh, opacity: number): void;
 
     /**
      * Clear a loaded texture from memory
      */
     abstract disposeTexture(textureData: TextureData<TTexture, TPanorama, TData>): void;
+
+    /**
+     * Cleanup a mesh from memory
+     */
+    abstract disposeMesh(mesh: TMesh): void;
 }
 
-// prettier-ignore
-export type AdapterConstructor = (new (viewer: Viewer, config?: any) => AbstractAdapter<any, any, any>);
+export type AdapterConstructor = (new (viewer: Viewer, config?: any) => AbstractAdapter<any, any, any, any>);
 
 /**
  * Returns the adapter constructor from the imported object

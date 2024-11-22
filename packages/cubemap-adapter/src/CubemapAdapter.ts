@@ -14,7 +14,7 @@ import {
 import { cleanCubemap, cleanCubemapArray, isCubemap } from './utils';
 
 type CubemapMesh = Mesh<BoxGeometry, MeshBasicMaterial[]>;
-type CubemapTexture = TextureData<Texture[], CubemapPanorama, CubemapData>;
+type CubemapTextureData = TextureData<Texture[], CubemapPanorama, CubemapData>;
 
 const getConfig = utils.getConfigParser<CubemapAdapterConfig>({
     blur: false,
@@ -26,7 +26,7 @@ const ORIGIN = new Vector3();
 /**
  * Adapter for cubemaps
  */
-export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], CubemapData> {
+export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, CubemapData, Texture[], CubemapMesh> {
     static override readonly id = 'cubemap';
     static override readonly VERSION = PKG_VERSION;
     static override readonly supportsDownload = false;
@@ -95,7 +95,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         // @ts-ignore
         const mesh = this.viewer.renderer.mesh;
         raycaster.set(ORIGIN, this.viewer.dataHelper.sphericalCoordsToVector3(position));
-        const point = raycaster.intersectObject(mesh)[0].point.multiplyScalar(1 / CONSTANTS.SPHERE_RADIUS);
+        const point = raycaster.intersectObject(mesh)[0].point.divideScalar(CONSTANTS.SPHERE_RADIUS);
 
         function mapUV(x: number, a1: number, a2: number): number {
             return Math.round(MathUtils.mapLinear(x, a1, a2, 0, data.faceSize));
@@ -143,7 +143,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         return { textureFace, textureX, textureY };
     }
 
-    async loadTexture(panorama: CubemapPanorama, loader = true): Promise<CubemapTexture> {
+    async loadTexture(panorama: CubemapPanorama, loader = true): Promise<CubemapTextureData> {
         if (this.viewer.config.fisheye) {
             utils.logWarn('fisheye effect with cubemap texture can generate distorsion');
         }
@@ -201,14 +201,25 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         const progress = [0, 0, 0, 0, 0, 0];
 
         for (let i = 0; i < 6; i++) {
-            promises.push(
-                this.viewer.textureLoader
-                    .loadImage(paths[i], loader ? (p) => {
-                        progress[i] = p;
-                        this.viewer.loader.setProgress(utils.sum(progress) / 6);
-                    } : null, cacheKey)
-                    .then((img) => this.createCubemapTexture(img))
-            );
+            if (!paths[i]) {
+                progress[i] = 100;
+                promises.push(Promise.resolve(null));
+            } else {
+                promises.push(
+                    this.viewer.textureLoader
+                        .loadImage(
+                            paths[i],
+                            loader
+                                ? (p) => {
+                                        progress[i] = p;
+                                        this.viewer.loader.setProgress(utils.sum(progress) / 6);
+                                    }
+                                : null,
+                            cacheKey,
+                        )
+                        .then(img => this.createCubemapTexture(img)),
+                );
+            }
         }
 
         return {
@@ -227,9 +238,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         if (this.config.blur || img.width > SYSTEM.maxTextureWidth) {
             const ratio = Math.min(1, SYSTEM.maxCanvasWidth / img.width);
 
-            const buffer = document.createElement('canvas');
-            buffer.width = img.width * ratio;
-            buffer.height = img.height * ratio;
+            const buffer = new OffscreenCanvas(Math.floor(img.width * ratio), Math.floor(img.height * ratio));
 
             const ctx = buffer.getContext('2d');
 
@@ -253,8 +262,8 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         const cacheKey = panorama.path;
         const img = await this.viewer.textureLoader.loadImage(
             panorama.path,
-            loader ? (p) => this.viewer.loader.setProgress(p) : null,
-            cacheKey
+            loader ? p => this.viewer.loader.setProgress(p) : null,
+            cacheKey,
         );
 
         if (img.width !== img.height * 6) {
@@ -262,19 +271,17 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         }
 
         const ratio = Math.min(1, SYSTEM.maxCanvasWidth / img.height);
-        const tileWidth = img.height * ratio;
+        const tileWidth = Math.floor(img.height * ratio);
 
-        const textures = {} as { [K in CubemapFaces]: Texture };
+        const textures = {} as Record<CubemapFaces, Texture>;
 
         for (let i = 0; i < 6; i++) {
-            const buffer = document.createElement('canvas');
-            buffer.width = tileWidth;
-            buffer.height = tileWidth;
+            const buffer = new OffscreenCanvas(tileWidth, tileWidth);
 
             const ctx = buffer.getContext('2d');
 
             if (this.config.blur) {
-                ctx.filter = 'blur(1px)';
+                ctx.filter = `blur(${buffer.width / 512}px)`;
             }
 
             ctx.drawImage(
@@ -282,7 +289,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
                 img.height * i, 0,
                 img.height, img.height,
                 0, 0,
-                tileWidth, tileWidth
+                tileWidth, tileWidth,
             );
 
             textures[panorama.order[i]] = utils.createTexture(buffer);
@@ -299,8 +306,8 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         const cacheKey = panorama.path;
         const img = await this.viewer.textureLoader.loadImage(
             panorama.path,
-            loader ? (p) => this.viewer.loader.setProgress(p) : null,
-            cacheKey
+            loader ? p => this.viewer.loader.setProgress(p) : null,
+            cacheKey,
         );
 
         if (img.width / 4 !== img.height / 3) {
@@ -308,7 +315,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         }
 
         const ratio = Math.min(1, SYSTEM.maxCanvasWidth / (img.width / 4));
-        const tileWidth = (img.width / 4) * ratio;
+        const tileWidth = Math.floor((img.width / 4) * ratio);
 
         const pts = [
             [0, 1 / 3], // left
@@ -322,14 +329,12 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         const textures: Texture[] = [];
 
         for (let i = 0; i < 6; i++) {
-            const buffer = document.createElement('canvas');
-            buffer.width = tileWidth;
-            buffer.height = tileWidth;
+            const buffer = new OffscreenCanvas(tileWidth, tileWidth);
 
             const ctx = buffer.getContext('2d');
 
             if (this.config.blur) {
-                ctx.filter = 'blur(1px)';
+                ctx.filter = `blur(${buffer.width / 512}px)`;
             }
 
             ctx.drawImage(
@@ -337,7 +342,7 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
                 img.width * pts[i][0], img.height * pts[i][1],
                 img.width / 4, img.height / 3,
                 0, 0,
-                tileWidth, tileWidth
+                tileWidth, tileWidth,
             );
 
             textures[i] = utils.createTexture(buffer);
@@ -354,44 +359,46 @@ export class CubemapAdapter extends AbstractAdapter<CubemapPanorama, Texture[], 
         const cubeSize = CONSTANTS.SPHERE_RADIUS * 2;
         const geometry = new BoxGeometry(cubeSize, cubeSize, cubeSize).scale(1, 1, -1);
 
-        const materials = [];
+        const materials: MeshBasicMaterial[] = [];
         for (let i = 0; i < 6; i++) {
-            materials.push(new MeshBasicMaterial());
+            const material = new MeshBasicMaterial({ depthTest: false, depthWrite: false });
+            materials.push(material);
         }
 
-        return new Mesh(geometry, []);
+        return new Mesh(geometry, materials);
     }
 
-    setTexture(mesh: CubemapMesh, textureData: CubemapTexture, transition?: boolean) {
-        const { texture, panoData } = textureData;
+    setTexture(mesh: CubemapMesh, { texture, panoData }: CubemapTextureData) {
+        mesh.material.forEach((material, i) => {
+            if (texture[i]) {
+                if (panoData.flipTopBottom && (i === 2 || i === 3)) {
+                    texture[i].center = new Vector2(0.5, 0.5);
+                    texture[i].rotation = Math.PI;
+                }
 
-        for (let i = 0; i < 6; i++) {
-            if (panoData.flipTopBottom && (i === 2 || i === 3)) {
-                texture[i].center = new Vector2(0.5, 0.5);
-                texture[i].rotation = Math.PI;
+                material.map = texture[i];
+            } else {
+                material.opacity = 0;
+                material.transparent = true;
             }
-
-            const material = new MeshBasicMaterial();
-
-            material.map = texture[i];
-
-            if (transition) {
-                material.depthTest = false;
-                material.depthWrite = false;
-            }
-
-            mesh.material.push(material);
-        }
+        });
     }
 
     setTextureOpacity(mesh: CubemapMesh, opacity: number) {
-        for (let i = 0; i < 6; i++) {
-            mesh.material[i].opacity = opacity;
-            mesh.material[i].transparent = opacity < 1;
-        }
+        mesh.material.forEach((material) => {
+            if (material.map) {
+                material.opacity = opacity;
+                material.transparent = opacity < 1;
+            }
+        });
     }
 
-    disposeTexture(textureData: CubemapTexture) {
-        textureData.texture?.forEach((texture) => texture.dispose());
+    disposeTexture({ texture }: CubemapTextureData): void {
+        texture.forEach(t => t.dispose());
+    }
+
+    disposeMesh(mesh: CubemapMesh): void {
+        mesh.geometry.dispose();
+        mesh.material.forEach(m => m.dispose());
     }
 }

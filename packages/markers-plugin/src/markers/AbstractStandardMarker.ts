@@ -12,7 +12,6 @@ import { Marker } from './Marker';
  * @internal
  */
 export abstract class AbstractStandardMarker extends AbstractDomMarker {
-
     protected needsUpdateSize: boolean;
 
     constructor(viewer: Viewer, plugin: MarkersPlugin, config: MarkerConfig) {

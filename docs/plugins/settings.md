@@ -9,15 +9,17 @@ This plugin does nothing on it's own but is required by other plugins.
 This plugin is available in the [@photo-sphere-viewer/settings-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/settings-plugin) package.
 :::
 
-[[toc]]
-
 ## Usage
 
 Once enabled the plugin will add a new "Settings" button which can be populated by other plugins.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    plugins: [PhotoSphereViewer.SettingsPlugin],
+import { SettingsPlugin } from '@photo-sphere-viewer/settings-plugin';
+
+const viewer = new Viewer({
+    plugins: [
+        SettingsPlugin,
+    ],
 });
 ```
 
@@ -31,50 +33,10 @@ The following example manually adds two settings.
 title: PSV Settings Demo
 packages:
     - name: settings-plugin
-      imports: SettingsPlugin
       style: true
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    panorama: baseUrl + 'sphere.jpg',
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-
-    plugins: [SettingsPlugin],
-});
-
-const settings = viewer.getPlugin(SettingsPlugin);
-
-let currentToggle = true;
-let currentOption = 'A';
-
-settings.addSetting({
-    id: 'custom-toggle-setting',
-    label: 'Toggle setting',
-    type: 'toggle',
-    active: () => currentToggle,
-    toggle: () => (currentToggle = !currentToggle),
-});
-
-settings.addSetting({
-    id: 'custom-options-setting',
-    label: 'Options setting',
-    type: 'options',
-    current: () => currentOption,
-    options: () => [
-        { id: 'A', label: 'Option A' },
-        { id: 'B', label: 'Option B' },
-    ],
-    apply: (option) => (currentOption = option),
-    badge: () => currentOption,
-});
-```
+<<< ./demos-src/settings.js
 
 :::
 
@@ -117,6 +79,8 @@ settings.addSetting({
     apply: (option) => (currentOption = option),
 });
 ```
+
+For translation purposes, both `label` can be a key in the main [`lang`](../guide/config.md#lang) object.
 
 ## Button badge
 

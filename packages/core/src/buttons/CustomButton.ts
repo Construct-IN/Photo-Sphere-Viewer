@@ -7,6 +7,7 @@ export class CustomButton extends AbstractButton {
 
     constructor(navbar: Navbar, config: NavbarCustomButton) {
         super(navbar, {
+            id: config.id ?? `psvButton-${Math.random().toString(36).substring(2)}`,
             className: `psv-custom-button ${config.className || ''}`,
             hoverScale: false,
             collapsable: config.collapsable !== false,
@@ -15,12 +16,6 @@ export class CustomButton extends AbstractButton {
         });
 
         this.customOnClick = config.onClick;
-
-        if (config.id) {
-            this.config.id = config.id;
-        } else {
-            this.config.id = 'psvButton-' + Math.random().toString(36).substring(2);
-        }
 
         if (config.content) {
             if (typeof config.content === 'string') {

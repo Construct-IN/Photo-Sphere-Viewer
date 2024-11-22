@@ -9,11 +9,13 @@ autoload: true
 title: PSV Marker layers Demo
 packages:
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js{16-20}
+```js{19-23}
+import { Viewer } from '@photo-sphere-viewer/core';
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const viewer = new Viewer({
@@ -64,7 +66,7 @@ markers.addEventListener('select-marker', ({ marker }) => {
     }
 });
 
-// bellow is custom animation to make Rick's position change
+// below is custom animation to make Rick's position change
 
 const positions = [
     [

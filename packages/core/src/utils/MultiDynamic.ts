@@ -11,13 +11,13 @@ export class MultiDynamic<T extends Record<string, Dynamic>> {
                 values[name] = dynamic.current;
                 return values;
             },
-            {} as Record<keyof T, number>
+            {} as Record<keyof T, number>,
         );
     }
 
     constructor(
         private readonly fn: (val: Record<keyof T, number>) => void,
-        private readonly dynamics: T
+        private readonly dynamics: T,
     ) {
         if (this.fn) {
             this.fn(this.current);
@@ -53,8 +53,8 @@ export class MultiDynamic<T extends Record<string, Dynamic>> {
                         values[name] = steps[name] + this.dynamics[name].current;
                         return values;
                     },
-                    {} as typeof steps
-                )
+                    {} as typeof steps,
+                ),
             );
         } else {
             for (const [name, step] of Object.entries(steps)) {

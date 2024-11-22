@@ -52,7 +52,6 @@ export function isPlainObject<T extends Record<string, any>>(value: any): value 
 export function deepmerge<T>(target: T, src: T): T {
     const first = src;
 
-    // eslint-disable-next-line @typescript-eslint/no-shadow
     return (function merge(target: any, src: any) {
         if (Array.isArray(src)) {
             if (!target || !Array.isArray(target)) {

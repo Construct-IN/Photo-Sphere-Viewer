@@ -94,3 +94,7 @@ export type EquirectangularTilesAdapterConfig = Omit<EquirectangularAdapterConfi
      */
     debug?: boolean;
 };
+
+export type EquirectangularTilesPanoData = PanoData & {
+    baseData: PanoData;
+};

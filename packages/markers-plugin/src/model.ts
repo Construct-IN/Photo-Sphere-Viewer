@@ -67,7 +67,6 @@ export type MarkerConfig = {
     /**
      * Array of points defining the polygon in spherical coordinates
      */
-    // eslint-disable-next-line @typescript-eslint/array-type
     polygon?:
         | Array<[number, number]>
         | Array<Array<[number, number]>>
@@ -76,20 +75,23 @@ export type MarkerConfig = {
     /**
      * Array of points defining the polygon in pixel coordinates on the panorama image
      */
-    // eslint-disable-next-line @typescript-eslint/array-type
-    polygonPixels?: 
-        | Array<[number, number]> 
+    polygonPixels?:
+        | Array<[number, number]>
         | Array<Array<[number, number]>>;
     /**
      * Array of points defining the polyline in spherical coordinates
      */
-    // eslint-disable-next-line @typescript-eslint/array-type
-    polyline?: [number, number][] | [string, string][] | number[] | string[];
+    polyline?:
+        | Array<[number, number]>
+        | Array<[string, string]>
+        | number[]
+        | string[];
     /**
      * Array of points defining the polyline in pixel coordinates on the panorama image
      */
-    // eslint-disable-next-line @typescript-eslint/array-type
-    polylinePixels?: [number, number][] | number[];
+    polylinePixels?:
+        | Array<[number, number]>
+        | number[];
 
     /**
      * Unique identifier of the marker
@@ -109,7 +111,7 @@ export type MarkerConfig = {
      * If defined as a scalar, it applies to the `roll` (Z axis)
      * Only 3D markers (`imageLayer`, `videoLayer`, `elementLayer`) support `yaw` and `pitch`
      */
-    rotation?: string | number | { yaw?: number | string; pitch?: number | string; roll?: number | string; };
+    rotation?: string | number | { yaw?: number | string; pitch?: number | string; roll?: number | string };
     /**
      * @deprecated Use `rotation` as an object
      */
@@ -207,7 +209,7 @@ export type MarkerConfig = {
 };
 
 export type ParsedMarkerConfig = Omit<MarkerConfig, 'rotation' | 'scale' | 'tooltip' | 'hoverScale'> & {
-    rotation?: { yaw?: number; pitch?: number; roll?: number; };
+    rotation?: { yaw?: number; pitch?: number; roll?: number };
     scale?:
         | { zoom?: [number, number]; yaw?: [number, number] }
         | ((zoomLevel: number, position: Position) => number);

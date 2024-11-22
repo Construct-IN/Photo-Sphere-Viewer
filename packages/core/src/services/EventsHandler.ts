@@ -1,11 +1,10 @@
-import { MathUtils, Mesh, SplineCurve, Vector2 } from 'three';
+import { MathUtils, Mesh } from 'three';
 import {
     ACTIONS,
     CAPTURE_EVENTS_CLASS,
     CTRLZOOM_TIMEOUT,
     DBLCLICK_DELAY,
     IDS,
-    INERTIA_WINDOW,
     KEY_CODES,
     LONGTOUCH_DELAY,
     MOVE_THRESHOLD,
@@ -14,6 +13,7 @@ import {
 } from '../data/constants';
 import { SYSTEM } from '../data/system';
 import {
+    BeforeRenderEvent,
     ClickEvent,
     DoubleClickEvent,
     FullscreenEvent,
@@ -21,19 +21,18 @@ import {
     ObjectEnterEvent,
     ObjectHoverEvent,
     ObjectLeaveEvent,
+    StopAllEvent,
     ViewerEvents,
 } from '../events';
 import gestureIcon from '../icons/gesture.svg';
 import mousewheelIcon from '../icons/mousewheel.svg';
 import { ClickData, Point, Position } from '../model';
 import {
-    Animation,
     clone,
-    distance,
-    getClosest,
+    getEventTarget,
+    getMatchingTarget,
     getPosition,
     getTouchData,
-    hasParent,
     isEmpty,
     throttle,
 } from '../utils';
@@ -45,12 +44,11 @@ class Step {
     static IDLE = 0;
     static CLICK = 1;
     static MOVING = 2;
-    static INERTIA = 4;
 
     private $: number = Step.IDLE;
 
     is(...steps: number[]): boolean {
-        return steps.some((step) => this.$ & step);
+        return steps.some(step => this.$ & step);
     }
 
     set(step: number) {
@@ -80,10 +78,11 @@ export class EventsHandler extends AbstractService {
         mouseX: 0,
         /** current y position of the cursor */
         mouseY: 0,
-        /** list of latest positions of the cursor, [time, x, y] */
-        mouseHistory: [] as Array<[number, number, number]>,
-        /** distance between fingers when zooming */
+        /** current distance between fingers */
         pinchDist: 0,
+        /** accumulator for smooth movement */
+        moveDelta: { yaw: 0, pitch: 0, zoom: 0 },
+        accumulatorFactor: 0,
         /** when the Ctrl key is pressed */
         ctrlKeyDown: false,
         /** temporary storage of click data between two clicks */
@@ -95,7 +94,7 @@ export class EventsHandler extends AbstractService {
     };
 
     private readonly step = new Step();
-    private readonly keyHandler = new PressHandler();
+    private readonly keyHandler = new PressHandler<ACTIONS>();
     private readonly resizeObserver = new ResizeObserver(throttle(() => this.viewer.autoSize(), 50));
     private readonly moveThreshold = MOVE_THRESHOLD * SYSTEM.pixelRatio;
 
@@ -118,6 +117,9 @@ export class EventsHandler extends AbstractService {
         this.viewer.container.addEventListener('wheel', this, { passive: false });
         document.addEventListener('fullscreenchange', this);
         this.resizeObserver.observe(this.viewer.container);
+
+        this.viewer.addEventListener(BeforeRenderEvent.type, this);
+        this.viewer.addEventListener(StopAllEvent.type, this);
     }
 
     override destroy() {
@@ -133,6 +135,9 @@ export class EventsHandler extends AbstractService {
         document.removeEventListener('fullscreenchange', this);
         this.resizeObserver.disconnect();
 
+        this.viewer.removeEventListener(BeforeRenderEvent.type, this);
+        this.viewer.removeEventListener(StopAllEvent.type, this);
+
         clearTimeout(this.data.dblclickTimeout);
         clearTimeout(this.data.longtouchTimeout);
         clearTimeout(this.data.twofingersTimeout);
@@ -145,7 +150,6 @@ export class EventsHandler extends AbstractService {
      * @internal
      */
     handleEvent(evt: Event) {
-        // prettier-ignore
         switch (evt.type) {
             case 'keydown': this.__onKeyDown(evt as KeyboardEvent); break;
             case 'keyup': this.__onKeyUp(); break;
@@ -154,10 +158,11 @@ export class EventsHandler extends AbstractService {
             case 'touchmove': this.__onTouchMove(evt as TouchEvent); break;
             case 'touchend': this.__onTouchEnd(evt as TouchEvent); break;
             case 'fullscreenchange': this.__onFullscreenChange(); break;
+            case BeforeRenderEvent.type: this.__applyMoveDelta(); break;
+            case StopAllEvent.type: this.__clearMoveDelta(); break;
         }
 
-        if (!getClosest(evt.target as HTMLElement, '.' + CAPTURE_EVENTS_CLASS)) {
-            // prettier-ignore
+        if (!getMatchingTarget(evt, '.' + CAPTURE_EVENTS_CLASS)) {
             switch (evt.type) {
                 case 'mousedown': this.__onMouseDown(evt as MouseEvent); break;
                 case 'touchstart': this.__onTouchStart(evt as TouchEvent); break;
@@ -179,7 +184,7 @@ export class EventsHandler extends AbstractService {
             }
         }
 
-        if (!this.viewer.dispatchEvent(new KeypressEvent(e.key))) {
+        if (!this.viewer.dispatchEvent(new KeypressEvent(e.key, e))) {
             return;
         }
 
@@ -190,14 +195,20 @@ export class EventsHandler extends AbstractService {
         const action = this.config.keyboardActions?.[e.key];
 
         if (typeof action === 'function') {
-            action(this.viewer);
+            action(this.viewer, e);
             e.preventDefault();
-        } else if (action && !this.keyHandler.pending) {
+            return;
+        }
+
+        if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
+            return;
+        }
+
+        if (action && !this.keyHandler.pending) {
             if (action !== ACTIONS.ZOOM_IN && action !== ACTIONS.ZOOM_OUT) {
                 this.viewer.stopAll();
             }
 
-            // prettier-ignore
             switch (action) {
                 case ACTIONS.ROTATE_UP: this.viewer.dynamics.position.roll({ pitch: false }); break;
                 case ACTIONS.ROTATE_DOWN: this.viewer.dynamics.position.roll({ pitch: true }); break;
@@ -207,7 +218,7 @@ export class EventsHandler extends AbstractService {
                 case ACTIONS.ZOOM_OUT: this.viewer.dynamics.zoom.roll(true); break;
             }
 
-            this.keyHandler.down();
+            this.keyHandler.down(action);
             e.preventDefault();
         }
     }
@@ -222,10 +233,13 @@ export class EventsHandler extends AbstractService {
             return;
         }
 
-        this.keyHandler.up(() => {
-            this.viewer.dynamics.position.stop();
-            this.viewer.dynamics.zoom.stop();
-            this.viewer.resetIdleTimer();
+        this.keyHandler.up((action) => {
+            if (action === ACTIONS.ZOOM_IN || action === ACTIONS.ZOOM_OUT) {
+                this.viewer.dynamics.zoom.stop();
+            } else {
+                this.viewer.dynamics.position.stop();
+                this.viewer.resetIdleTimer();
+            }
         });
     }
 
@@ -243,7 +257,7 @@ export class EventsHandler extends AbstractService {
      */
     private __onMouseUp(evt: MouseEvent) {
         if (this.step.is(Step.CLICK, Step.MOVING)) {
-            this.__stopMove(evt.clientX, evt.clientY, evt.target, evt.button === 2);
+            this.__stopMove(evt.clientX, evt.clientY, evt, evt.button === 2);
         }
     }
 
@@ -271,7 +285,7 @@ export class EventsHandler extends AbstractService {
             if (!this.data.longtouchTimeout) {
                 this.data.longtouchTimeout = setTimeout(() => {
                     const touch = evt.touches[0];
-                    this.__stopMove(touch.clientX, touch.clientY, touch.target, true);
+                    this.__stopMove(touch.clientX, touch.clientY, evt, true);
                     this.data.longtouchTimeout = null;
                 }, LONGTOUCH_DELAY);
             }
@@ -301,7 +315,7 @@ export class EventsHandler extends AbstractService {
                 this.__stopMove(this.data.mouseX, this.data.mouseY);
             } else if (evt.touches.length === 0) {
                 const touch = evt.changedTouches[0];
-                this.__stopMove(touch.clientX, touch.clientY, touch.target);
+                this.__stopMove(touch.clientX, touch.clientY, evt);
             }
         }
     }
@@ -417,135 +431,74 @@ export class EventsHandler extends AbstractService {
         this.data.mouseY = 0;
         this.data.startMouseX = 0;
         this.data.startMouseY = 0;
-        this.data.mouseHistory.length = 0;
     }
 
     /**
      * Initializes the combines move and zoom
      */
     private __startMoveZoom(evt: TouchEvent) {
-        this.viewer.stopAll(); // TODO nom ?
+        this.viewer.stopAll();
         this.__resetMove();
 
         const touchData = getTouchData(evt);
 
         this.step.set(Step.MOVING);
+        this.data.accumulatorFactor = this.config.moveInertia;
         ({
             distance: this.data.pinchDist,
             center: { x: this.data.mouseX, y: this.data.mouseY },
         } = touchData);
-
-        this.__logMouseMove(this.data.mouseX, this.data.mouseY);
     }
 
     /**
      * Stops the movement
-     * @description If the move threshold was not reached a click event is triggered, otherwise an animation is launched to simulate inertia
+     * @description If the move threshold was not reached a click event is triggered
      */
-    private __stopMove(clientX: number, clientY: number, target?: EventTarget, rightclick = false) {
-        if (this.step.is(Step.MOVING)) {
-            if (this.config.moveInertia) {
-                this.__logMouseMove(clientX, clientY);
-                this.__stopMoveInertia(clientX, clientY);
-            } else {
-                this.__resetMove();
-                this.viewer.resetIdleTimer();
-            }
-        } else {
-            if (this.step.is(Step.CLICK) && !this.__moveThresholdReached(clientX, clientY)) {
-                this.__doClick(clientX, clientY, target, rightclick);
-            }
-            this.step.remove(Step.CLICK);
-            if (!this.step.is(Step.INERTIA)) {
-                this.__resetMove();
-                this.viewer.resetIdleTimer();
-            }
-        }
-    }
-
-    /**
-     * Performs an animation to simulate inertia when the movement stops
-     */
-    private __stopMoveInertia(clientX: number, clientY: number) {
-        // get direction at end of movement
-        const curve = new SplineCurve(this.data.mouseHistory.map(([, x, y]) => new Vector2(x, y)));
-        const direction = curve.getTangent(1);
-
-        // average speed
-        // prettier-ignore
-        const speed = this.data.mouseHistory.reduce(({ total, prev }, curr) => ({
-            total: !prev ? 0 : total + distance({ x: prev[1], y: prev[2] }, { x: curr[1], y: curr[2] }) / (curr[0] - prev[0]),
-            prev: curr,
-        }), {
-            total: 0,
-            prev: null,
-        }).total / this.data.mouseHistory.length;
-
-        if (!speed) {
-            this.__resetMove();
-            this.viewer.resetIdleTimer();
-            return;
+    private __stopMove(clientX: number, clientY: number, event?: Event, rightclick = false) {
+        if (this.step.is(Step.CLICK) && !this.__moveThresholdReached(clientX, clientY)) {
+            this.__doClick(clientX, clientY, event, rightclick);
         }
 
-        this.step.set(Step.INERTIA);
+        if (this.config.moveInertia) {
+            this.data.accumulatorFactor = Math.pow(this.config.moveInertia, 0.5);
+        }
 
-        let currentClientX = clientX;
-        let currentClientY = clientY;
-
-        this.state.animation = new Animation({
-            properties: {
-                speed: { start: speed, end: 0 },
-            },
-            duration: 1000,
-            easing: 'outQuad',
-            onTick: (properties) => {
-                // 3 is a magic number
-                currentClientX += properties.speed * direction.x * 3 * SYSTEM.pixelRatio;
-                currentClientY += properties.speed * direction.y * 3 * SYSTEM.pixelRatio;
-                this.__applyMove(currentClientX, currentClientY);
-            },
-        });
-
-        this.state.animation.then((done) => {
-            this.state.animation = null;
-            if (done) {
-                this.__resetMove();
-                this.viewer.resetIdleTimer();
-            }
-        });
+        this.__resetMove();
+        this.viewer.resetIdleTimer();
     }
 
     /**
      * Triggers an event with all coordinates when a simple click is performed
      */
-    private __doClick(clientX: number, clientY: number, target: EventTarget, rightclick = false) {
+    private __doClick(clientX: number, clientY: number, event?: Event, rightclick = false) {
         const boundingRect = this.viewer.container.getBoundingClientRect();
 
         const viewerX = clientX - boundingRect.left;
         const viewerY = clientY - boundingRect.top;
 
         const intersections = this.viewer.renderer.getIntersections({ x: viewerX, y: viewerY });
-        const sphereIntersection = intersections.find((i) => i.object.userData[VIEWER_DATA]);
+        const sphereIntersection = intersections.find(i => i.object.userData[VIEWER_DATA]);
 
         if (sphereIntersection) {
             const sphericalCoords = this.viewer.dataHelper.vector3ToSphericalCoords(sphereIntersection.point);
 
             const data: ClickData = {
                 rightclick: rightclick,
-                target: target as HTMLElement,
+                originalEvent: event,
+                target: getEventTarget(event),
                 clientX,
                 clientY,
                 viewerX,
                 viewerY,
                 yaw: sphericalCoords.yaw,
                 pitch: sphericalCoords.pitch,
-                objects: intersections.map((i) => i.object).filter((o) => !o.userData[VIEWER_DATA]),
+                objects: intersections.map(i => i.object).filter(o => !o.userData[VIEWER_DATA]),
             };
 
             try {
                 const textureCoords = this.viewer.dataHelper.sphericalCoordsToTextureCoords(data);
                 Object.assign(data, textureCoords);
-            } catch (e) {
+            } catch {
                 // nothing
             }
 
@@ -576,7 +529,7 @@ export class EventsHandler extends AbstractService {
      * Trigger events for observed THREE objects
      */
     private __handleObjectsEvents(evt: MouseEvent) {
-        if (!isEmpty(this.state.objectsObservers) && hasParent(evt.target as HTMLElement, this.viewer.container)) {
+        if (!isEmpty(this.state.objectsObservers) && evt.composedPath().includes(this.viewer.container)) {
             const viewerPos = getPosition(this.viewer.container);
 
             const viewerPoint: Point = {
@@ -589,13 +542,13 @@ export class EventsHandler extends AbstractService {
             const emit = (
                 object: Mesh,
                 key: string,
-                evtCtor: new (e: MouseEvent, o: Mesh, pt: Point, data: any) => ViewerEvents
+                evtCtor: new (e: MouseEvent, o: Mesh, pt: Point, data: any) => ViewerEvents,
             ) => {
                 this.viewer.dispatchEvent(new evtCtor(evt, object, viewerPoint, key));
             };
 
             for (const [key, object] of Object.entries(this.state.objectsObservers) as Array<[string, Mesh | null]>) {
-                const intersection = intersections.find((i) => i.object.userData[key]);
+                const intersection = intersections.find(i => i.object.userData[key]);
 
                 if (intersection) {
                     if (object && intersection.object !== object) {
@@ -627,10 +580,21 @@ export class EventsHandler extends AbstractService {
             this.step.set(Step.MOVING);
             this.data.mouseX = clientX;
             this.data.mouseY = clientY;
-            this.__logMouseMove(clientX, clientY);
+            this.data.accumulatorFactor = this.config.moveInertia;
         } else if (this.step.is(Step.MOVING)) {
-            this.__applyMove(clientX, clientY);
-            this.__logMouseMove(clientX, clientY);
+            const x = (clientX - this.data.mouseX) * Math.cos(this.state.roll) - (clientY - this.data.mouseY) * Math.sin(this.state.roll);
+            const y = (clientY - this.data.mouseY) * Math.cos(this.state.roll) + (clientX - this.data.mouseX) * Math.sin(this.state.roll);
+
+            const rotation: Position = {
+                yaw: this.config.moveSpeed * (x / this.state.size.width) * MathUtils.degToRad(this.state.hFov),
+                pitch: this.config.moveSpeed * (y / this.state.size.height) * MathUtils.degToRad(this.state.vFov),
+            };
+
+            this.data.moveDelta.yaw += rotation.yaw;
+            this.data.moveDelta.pitch += rotation.pitch;
+
+            this.data.mouseX = clientX;
+            this.data.mouseY = clientY;
         }
     }
 
@@ -645,34 +609,6 @@ export class EventsHandler extends AbstractService {
     }
 
     /**
-     * Raw method for movement, called from mouse event and move inertia
-     */
-    private __applyMove(clientX: number, clientY: number) {
-        const x = (clientX - this.data.mouseX) * Math.cos(this.state.roll) - (clientY - this.data.mouseY) * Math.sin(this.state.roll);
-        const y = (clientY - this.data.mouseY) * Math.cos(this.state.roll) + (clientX - this.data.mouseX) * Math.sin(this.state.roll);
-
-        const rotation: Position = {
-            yaw:
-                this.config.moveSpeed
-                * (x / this.state.size.width)
-                * MathUtils.degToRad(this.state.hFov),
-            pitch:
-                this.config.moveSpeed
-                * (y / this.state.size.height)
-                * MathUtils.degToRad(this.state.vFov),
-        };
-
-        const currentPosition = this.viewer.getPosition();
-        this.viewer.rotate({
-            yaw: currentPosition.yaw - rotation.yaw,
-            pitch: currentPosition.pitch + rotation.pitch,
-        });
-
-        this.data.mouseX = clientX;
-        this.data.mouseY = clientY;
-    }
-
-    /**
      * Perfoms combined move and zoom
      */
     private __doMoveZoom(evt: TouchEvent) {
@@ -680,50 +616,51 @@ export class EventsHandler extends AbstractService {
             evt.preventDefault();
 
             const touchData = getTouchData(evt);
-            const delta = ((touchData.distance - this.data.pinchDist) / SYSTEM.pixelRatio) * this.config.zoomSpeed;
 
-            this.viewer.zoom(this.viewer.getZoomLevel() + delta);
             this.__doMove(touchData.center.x, touchData.center.y);
+
+            this.data.moveDelta.zoom += this.config.zoomSpeed * ((touchData.distance - this.data.pinchDist) / SYSTEM.pixelRatio);
 
             this.data.pinchDist = touchData.distance;
         }
     }
 
-    /**
-     * Stores each mouse position during a mouse move
-     * @description Positions older than "INERTIA_WINDOW" are removed<br>
-     * Positions before a pause of "INERTIA_WINDOW" / 10 are removed
-     */
-    private __logMouseMove(clientX: number, clientY: number) {
-        const now = Date.now();
+    private __applyMoveDelta() {
+        const EPS = 0.001;
 
-        const last = this.data.mouseHistory.length
-            ? this.data.mouseHistory[this.data.mouseHistory.length - 1]
-            : [0, -1, -1];
+        if (Math.abs(this.data.moveDelta.yaw) > 0 || Math.abs(this.data.moveDelta.pitch) > 0) {
+            const currentPosition = this.viewer.getPosition();
+            this.viewer.rotate({
+                yaw: currentPosition.yaw - this.data.moveDelta.yaw * (1 - this.config.moveInertia),
+                pitch: currentPosition.pitch + this.data.moveDelta.pitch * (1 - this.config.moveInertia),
+            });
 
-        // avoid duplicates
-        if (last[1] === clientX && last[2] === clientY) {
-            last[0] = now;
-        } else if (now === last[0]) {
-            last[1] = clientX;
-            last[2] = clientY;
-        } else {
-            this.data.mouseHistory.push([now, clientX, clientY]);
-        }
+            this.data.moveDelta.yaw *= this.data.accumulatorFactor;
+            this.data.moveDelta.pitch *= this.data.accumulatorFactor;
 
-        let previous = null;
-
-        for (let i = 0; i < this.data.mouseHistory.length; ) {
-            if (this.data.mouseHistory[i][0] < now - INERTIA_WINDOW) {
-                this.data.mouseHistory.splice(i, 1);
-            } else if (previous && this.data.mouseHistory[i][0] - previous > INERTIA_WINDOW / 10) {
-                this.data.mouseHistory.splice(0, i);
-                i = 0;
-                previous = this.data.mouseHistory[i][0];
-            } else {
-                previous = this.data.mouseHistory[i][0];
-                i++;
+            if (Math.abs(this.data.moveDelta.yaw) <= EPS) {
+                this.data.moveDelta.yaw = 0;
+            }
+            if (Math.abs(this.data.moveDelta.pitch) <= EPS) {
+                this.data.moveDelta.pitch = 0;
             }
         }
+
+        if (Math.abs(this.data.moveDelta.zoom) > 0) {
+            const currentZoom = this.viewer.getZoomLevel();
+            this.viewer.zoom(currentZoom + this.data.moveDelta.zoom * (1 - this.config.moveInertia));
+
+            this.data.moveDelta.zoom *= this.config.moveInertia;
+
+            if (Math.abs(this.data.moveDelta.zoom) <= EPS) {
+                this.data.moveDelta.zoom = 0;
+            }
+        }
+    }
+
+    private __clearMoveDelta() {
+        this.data.moveDelta.yaw = 0;
+        this.data.moveDelta.pitch = 0;
+        this.data.moveDelta.zoom = 0;
     }
 }

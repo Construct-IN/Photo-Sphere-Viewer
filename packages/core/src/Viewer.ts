@@ -1,3 +1,4 @@
+import { Object3D } from 'three';
 import { PSVError } from './PSVError';
 import type { AbstractAdapter } from './adapters/AbstractAdapter';
 import type { AbstractComponent } from './components/AbstractComponent';
@@ -21,6 +22,7 @@ import {
     ReadyEvent,
     SizeUpdatedEvent,
     StopAllEvent,
+    TransitionDoneEvent,
     ViewerEvents,
     ZoomUpdatedEvent,
 } from './events';
@@ -47,6 +49,7 @@ import { ViewerDynamics } from './services/ViewerDynamics';
 import { ViewerState } from './services/ViewerState';
 import {
     Animation,
+    checkClosedShadowDom,
     checkStylesheet,
     exitFullscreen,
     getAbortError,
@@ -66,6 +69,12 @@ import {
  * Photo Sphere Viewer controller
  */
 export class Viewer extends TypedEventTarget<ViewerEvents> {
+    /**
+     * Change the order in which the panoData and sphereCorrection angles are applied from 'ZXY' to 'YXZ'
+     * @deprecated Will be removed in version 5.12
+     */
+    static useNewAnglesOrder = true;
+
     readonly state: ViewerState;
     readonly config: ParsedViewerConfig;
 
@@ -73,7 +82,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
     readonly container: HTMLElement;
 
     /** @internal */
-    readonly adapter: AbstractAdapter<any, any, any>;
+    readonly adapter: AbstractAdapter<any, any, any, Object3D>;
     /** @internal */
     readonly plugins: Record<string, AbstractPlugin<any>> = {};
     /** @internal */
@@ -112,6 +121,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
         this.container.classList.add('psv-container');
         this.parent.appendChild(this.container);
 
+        checkClosedShadowDom(this.parent);
         checkStylesheet(this.container, 'core');
 
         this.state = new ViewerState();
@@ -191,7 +201,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
             delete this.plugins[id];
         }
 
-        this.children.slice().forEach((child) => child.destroy());
+        this.children.slice().forEach(child => child.destroy());
         this.children.length = 0;
 
         this.eventsHandler?.destroy();
@@ -441,7 +451,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
                 })
                 .then(
                     () => done(),
-                    (err) => done(err)
+                    err => done(err),
                 );
         } else {
             this.state.loadingPromise = loadingPromise
@@ -455,13 +465,16 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
                 })
                 .then((completed) => {
                     this.state.transitionAnimation = null;
+
+                    this.dispatchEvent(new TransitionDoneEvent(completed));
+
                     if (!completed) {
                         throw getAbortError();
                     }
                 })
                 .then(
                     () => done(),
-                    (err) => done(err)
+                    err => done(err),
                 );
         }
 
@@ -569,7 +582,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
             id: IDS.ERROR,
             image: errorIcon,
             title: message,
-            dissmisable: false,
+            dismissible: false,
         });
     }
 
@@ -624,7 +637,7 @@ export class Viewer extends TypedEventTarget<ViewerEvents> {
 
         const e = new BeforeAnimateEvent(
             positionProvided ? this.dataHelper.cleanPosition(options) : undefined,
-            options.zoom
+            options.zoom,
         );
         this.dispatchEvent(e);
 

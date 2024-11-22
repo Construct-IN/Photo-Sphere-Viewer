@@ -9,7 +9,6 @@ import { Marker } from './Marker';
  * @internal
  */
 export class MarkerNormal extends AbstractStandardMarker {
-
     constructor(viewer: Viewer, plugin: MarkersPlugin, config: MarkerConfig) {
         super(viewer, plugin, config);
     }
@@ -73,7 +72,7 @@ export class MarkerNormal extends AbstractStandardMarker {
             case MarkerType.element:
                 if (this.definition !== this.config.element) {
                     this.definition = this.config.element;
-                    element.childNodes.forEach((n) => n.remove());
+                    element.childNodes.forEach(n => n.remove());
                     element.appendChild(this.config.element);
                     this.config.element.style.display = 'block';
                 }

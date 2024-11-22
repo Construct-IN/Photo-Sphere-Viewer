@@ -12,7 +12,7 @@ export type EquirectangularTileConfig = EquirectangularTileLevel & {
 };
 
 function isMultiTiles(
-    panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama
+    panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
 ): panorama is EquirectangularMultiTilesPanorama {
     return !!(panorama as EquirectangularMultiTilesPanorama).levels;
 }
@@ -20,7 +20,7 @@ function isMultiTiles(
 function computeTileConfig(
     tile: EquirectangularTileLevel,
     level: number,
-    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number }
+    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number },
 ): EquirectangularTileConfig {
     return {
         ...tile,
@@ -35,7 +35,7 @@ function computeTileConfig(
 export function getTileConfig(
     panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
     zoomLevel: number,
-    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number }
+    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number },
 ): EquirectangularTileConfig {
     let tile: EquirectangularTileLevel;
     let level: number;
@@ -55,7 +55,7 @@ export function getTileConfig(
 export function getTileConfigByIndex(
     panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
     level: number,
-    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number }
+    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number },
 ): EquirectangularTileConfig {
     if (!isMultiTiles(panorama) || !panorama.levels[level]) {
         return null;
@@ -66,13 +66,13 @@ export function getTileConfigByIndex(
 
 export function checkPanoramaConfig(
     panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
-    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number }
+    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number },
 ) {
     if (typeof panorama !== 'object' || !panorama.tileUrl) {
         throw new PSVError('Invalid panorama configuration, are you using the right adapter?');
     }
     if (isMultiTiles(panorama)) {
-        panorama.levels.forEach((level) => checkTile(level, data));
+        panorama.levels.forEach(level => checkTile(level, data));
         checkTilesLevels(panorama.levels);
     } else {
         checkTile(panorama, data);
@@ -81,7 +81,7 @@ export function checkPanoramaConfig(
 
 function checkTile(
     tile: EquirectangularTilesPanorama | EquirectangularTileLevel,
-    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number }
+    data: { SPHERE_SEGMENTS: number; SPHERE_HORIZONTAL_SEGMENTS: number },
 ) {
     if (!tile.width || !tile.cols || !tile.rows) {
         throw new PSVError('Invalid panorama configuration, are you using the right adapter?');
@@ -95,4 +95,22 @@ function checkTile(
     if (!MathUtils.isPowerOfTwo(tile.cols) || !MathUtils.isPowerOfTwo(tile.rows)) {
         throw new PSVError('Panorama cols and rows must be powers of 2.');
     }
+}
+
+/**
+ * Returns a path used for cache key
+ */
+export function getCacheKey(
+    panorama: EquirectangularTilesPanorama | EquirectangularMultiTilesPanorama,
+    firstTile: EquirectangularTileConfig,
+): string {
+    // some tiles might be "null"
+    for (let i = 0; i < firstTile.cols; i++) {
+        const url = panorama.tileUrl(i, firstTile.rows / 2, firstTile.level);
+        if (url) {
+            return url;
+        }
+    }
+
+    return panorama.tileUrl.toString();
 }

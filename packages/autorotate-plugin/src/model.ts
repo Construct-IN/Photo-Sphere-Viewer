@@ -7,20 +7,20 @@ export type AutorotateKeypoint =
     | ExtendedPosition
     | string
     | {
-          position?: ExtendedPosition;
-          /**
-           * use the position and tooltip of a marker
-           */
-          markerId?: string;
-          /**
-           * pause the animation when reaching this point, will display the tooltip if available
-           */
-          pause?: number;
-          /**
-           * optional tooltip
-           */
-          tooltip?: string | { content: string; position?: string };
-      };
+        position?: ExtendedPosition;
+        /**
+         * use the position and tooltip of a marker
+         */
+        markerId?: string;
+        /**
+         * pause the animation when reaching this point, will display the tooltip if available
+         */
+        pause?: number;
+        /**
+         * optional tooltip
+         */
+        tooltip?: string | { content: string; position?: string };
+    };
 
 export type AutorotatePluginConfig = {
     /**

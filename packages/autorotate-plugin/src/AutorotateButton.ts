@@ -43,7 +43,7 @@ export class AutorotateButton extends AbstractButton {
 
     onClick() {
         if (this.plugin.isEnabled()) {
-            this.plugin.config.autostartOnIdle = false;
+            this.plugin.disableOnIdle();
         }
         this.plugin.toggle();
     }

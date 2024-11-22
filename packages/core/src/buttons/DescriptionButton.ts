@@ -126,9 +126,7 @@ export class DescriptionButton extends AbstractButton {
             this.mode = DescriptionButtonMode.PANEL;
             this.viewer.panel.show({
                 id: IDS.DESCRIPTION,
-                content:
-                    (this.viewer.config.caption ? `<p>${this.viewer.config.caption}</p>` : '') +
-                    this.viewer.config.description,
+                content: `${this.viewer.config.caption ? `<p>${this.viewer.config.caption}</p>` : ''}${this.viewer.config.description}`,
             });
         } else {
             this.mode = DescriptionButtonMode.NOTIF;

@@ -2,7 +2,7 @@
   "name": "@photo-sphere-viewer/plan-plugin",
   "version": "0.0.0",
   "description": "Photo Sphere Viewer plugin to add a geographic map (via Leaftlet).",
-  "homepage": "https://photo-sphere-viewer.js.org/plugins/plan",
+  "homepage": "https://photo-sphere-viewer.js.org/plugins/plan.html",
   "license": "MIT",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -12,17 +12,16 @@
     "cartography"
   ],
   "dependencies": {
+    "@photo-sphere-viewer/core": "0.0.0",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.8"
   },
-  "peerDependencies": {
-    "@photo-sphere-viewer/core": "0.0.0"
-  },
   "scripts": {
     "build": "tsup",
     "watch": "tsup --watch",
+    "instrument": "nyc instrument dist/index.module.js .",
     "lint": "tsc --noEmit && eslint . --fix && stylelint \"src/**/*.scss\" --fix",
     "publish-dist": "cd dist && npm publish --tag=$NPM_TAG --access=public",
     "npm-link": "cd dist && npm link"

@@ -2,15 +2,15 @@ import type { TextureData, Viewer } from '@photo-sphere-viewer/core';
 import { CONSTANTS, utils } from '@photo-sphere-viewer/core';
 import { BoxGeometry, BufferAttribute, Mesh, ShaderMaterial, Texture, Vector2, VideoTexture } from 'three';
 import { AbstractVideoAdapter } from '../../shared/AbstractVideoAdapter';
-import { CubemapVideoAdapterConfig, CubemapVideoPanorama } from './model';
+import { CubemapVideoAdapterConfig, CubemapVideoData, CubemapVideoPanorama } from './model';
 import equiangularFragment from './shaders/equiangular.fragment.glsl';
 import equiangularVertex from './shaders/equiangular.vertex.glsl';
 
-type CubemapMesh = Mesh<BoxGeometry, ShaderMaterial>;
-type CubemapTexture = TextureData<VideoTexture, CubemapVideoPanorama>;
+type CubemapVideoMesh = Mesh<BoxGeometry, ShaderMaterial>;
+type CubemapVideoTextureData = TextureData<VideoTexture, CubemapVideoPanorama, CubemapVideoData>;
 
 type ShaderUniforms = {
-    mapped: { value: Texture };
+    map: { value: Texture };
     equiangular: { value: boolean };
     contCorrect: { value: number };
     faceWH: { value: Vector2 };
@@ -25,7 +25,7 @@ const getConfig = utils.getConfigParser<CubemapVideoAdapterConfig>({
 /**
  * Adapter for cubemap videos
  */
-export class CubemapVideoAdapter extends AbstractVideoAdapter<CubemapVideoPanorama, never> {
+export class CubemapVideoAdapter extends AbstractVideoAdapter<CubemapVideoPanorama, CubemapVideoData, CubemapVideoMesh> {
     static override readonly id = 'cubemap-video';
     static override readonly VERSION = PKG_VERSION;
 
@@ -37,22 +37,57 @@ export class CubemapVideoAdapter extends AbstractVideoAdapter<CubemapVideoPanora
         this.config = getConfig(config);
     }
 
-    override loadTexture(panorama: CubemapVideoPanorama): Promise<CubemapTexture> {
-        panorama.equiangular = panorama.equiangular ?? true;
-        return super.loadTexture(panorama);
+    override async loadTexture(panorama: CubemapVideoPanorama): Promise<CubemapVideoTextureData> {
+        const { texture } = await super.loadTexture(panorama);
+
+        const panoData: CubemapVideoData = {
+            isCubemap: true,
+            equiangular: panorama.equiangular ?? true,
+        };
+
+        return { panorama, texture, panoData };
     }
 
-    createMesh(): CubemapMesh {
+    createMesh(panoData: CubemapVideoData): CubemapVideoMesh {
         const cubeSize = CONSTANTS.SPHERE_RADIUS * 2;
         const geometry = new BoxGeometry(cubeSize, cubeSize, cubeSize).scale(1, 1, -1).toNonIndexed() as BoxGeometry;
+        this.__setUVs(geometry);
 
+        const material = new ShaderMaterial({
+            uniforms: {
+                map: { value: null },
+                equiangular: { value: panoData.equiangular },
+                contCorrect: { value: 1 },
+                faceWH: { value: new Vector2(1 / 3, 1 / 2) },
+                vidWH: { value: new Vector2(1, 1) },
+            } satisfies ShaderUniforms,
+            vertexShader: equiangularVertex,
+            fragmentShader: equiangularFragment,
+            depthTest: false,
+            depthWrite: false,
+        });
+
+        return new Mesh(geometry, material);
+    }
+
+    setTexture(mesh: CubemapVideoMesh, { texture }: CubemapVideoTextureData) {
+        const video = texture.image as HTMLVideoElement;
+        const uniforms = mesh.material.uniforms as ShaderUniforms;
+
+        uniforms.map.value = texture;
+        uniforms.vidWH.value.set(video.videoWidth, video.videoHeight);
+
+        this.switchVideo(texture);
+    }
+
+    private __setUVs(geometry: BoxGeometry) {
         geometry.clearGroups();
 
         const uvs = geometry.getAttribute('uv') as BufferAttribute;
 
         /*
           Structure of a frame
-    
+
           1 +---------+---------+---------+
             |         |         |         |
             |  Left   |  Front  |  Right  |
@@ -63,7 +98,7 @@ export class CubemapVideoAdapter extends AbstractVideoAdapter<CubemapVideoPanora
             |         |         |         |
           0 +---------+---------+---------+
             0        1/3       2/3        1
-    
+
            Bottom, Back and Top are rotated 90° clockwise
          */
 
@@ -125,31 +160,5 @@ export class CubemapVideoAdapter extends AbstractVideoAdapter<CubemapVideoPanora
         uvs.setXY(33, b, B);
         uvs.setXY(34, c, B);
         uvs.setXY(35, c, A);
-
-        const material = new ShaderMaterial({
-            uniforms: {
-                mapped: { value: null },
-                equiangular: { value: true },
-                contCorrect: { value: 1 },
-                faceWH: { value: new Vector2(1 / 3, 1 / 2) },
-                vidWH: { value: new Vector2(1, 1) },
-            } as ShaderUniforms,
-            vertexShader: equiangularVertex,
-            fragmentShader: equiangularFragment,
-        });
-
-        return new Mesh(geometry, material);
-    }
-
-    setTexture(mesh: CubemapMesh, textureData: CubemapTexture) {
-        const { panorama, texture } = textureData;
-        const video: HTMLVideoElement = texture.image;
-        const uniforms = mesh.material.uniforms as ShaderUniforms;
-
-        uniforms.mapped.value = texture;
-        uniforms.equiangular.value = panorama.equiangular;
-        uniforms.vidWH.value.set(video.videoWidth, video.videoHeight);
-
-        this.switchVideo(textureData.texture);
     }
 }

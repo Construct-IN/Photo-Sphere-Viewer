@@ -1,5 +1,5 @@
 import type { Position, Viewer } from '@photo-sphere-viewer/core';
-import { AbstractConfigurablePlugin, events, utils } from '@photo-sphere-viewer/core';
+import { AbstractConfigurablePlugin, DEFAULTS, events, utils } from '@photo-sphere-viewer/core';
 import { Object3D, Vector3 } from 'three';
 import { DeviceOrientationControls } from './DeviceOrientationControls';
 import { GyroscopePluginEvents, GyroscopeUpdatedEvent } from './events';
@@ -21,7 +21,7 @@ const getConfig = utils.getConfigParser<GyroscopePluginConfig>(
                 return moveMode;
             }
         },
-    }
+    },
 );
 
 const direction = new Vector3();
@@ -44,7 +44,7 @@ export class GyroscopePlugin extends AbstractConfigurablePlugin<
         isSupported: this.__checkSupport(),
         alphaOffset: 0,
         enabled: false,
-        config_moveInertia: true,
+        config_moveInertia: DEFAULTS.moveInertia,
         moveMode: this.config.moveMode,
     };
 
@@ -136,7 +136,7 @@ export class GyroscopePlugin extends AbstractConfigurablePlugin<
 
                 // disable inertia
                 this.state.config_moveInertia = this.viewer.config.moveInertia;
-                this.viewer.config.moveInertia = false;
+                this.viewer.config.moveInertia = 0;
 
                 // enable gyro controls
                 if (!this.controls) {

@@ -9,8 +9,6 @@ Adds a gallery on the bottom of the viewer to navigate between multiple panorama
 This plugin is available in the [@photo-sphere-viewer/gallery-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/gallery-plugin) package.
 :::
 
-[[toc]]
-
 ::: warning
 GalleryPlugin is not compatible with ResolutionPlugin.
 :::
@@ -20,9 +18,11 @@ GalleryPlugin is not compatible with ResolutionPlugin.
 The plugin has a list of `items`, each configuring the corresponding panorama, a name and a thumbnail.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+import { GalleryPlugin } from '@photo-sphere-viewer/gallery-plugin';
+
+const viewer = new Viewer({
     plugins: [
-        [PhotoSphereViewer.GalleryPlugin, {
+        [GalleryPlugin, {
             items: [
                 {
                     id: 'pano-1',
@@ -50,55 +50,10 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Gallery Demo
 packages:
     - name: gallery-plugin
-      imports: GalleryPlugin
       style: true
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    panorama: baseUrl + 'sphere.jpg',
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-
-    plugins: [
-        [GalleryPlugin, {
-            visibleOnLoad: true,
-        }],
-    ],
-});
-
-const gallery = viewer.getPlugin(GalleryPlugin);
-
-gallery.setItems([
-    {
-        id: 'sphere',
-        panorama: baseUrl + 'sphere.jpg',
-        thumbnail: baseUrl + 'sphere-small.jpg',
-        options: {
-            caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-        },
-    },
-    {
-        id: 'sphere-test',
-        panorama: baseUrl + 'sphere-test.jpg',
-        name: 'Test sphere',
-    },
-    {
-        id: 'key-biscayne',
-        panorama: baseUrl + 'tour/key-biscayne-1.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-1-thumb.jpg',
-        name: 'Key Biscayne',
-        options: {
-            caption: 'Cape Florida Light, Key Biscayne <b>&copy; Pixexid</b>',
-        },
-    },
-]);
-```
+<<< ./demos-src/gallery.js
 
 :::
 
@@ -109,7 +64,7 @@ gallery.setItems([
 -   type: `GalleryItem[]`
 -   updatable: no, use `setItems()` method
 
-The list of items, see bellow.
+The list of items, see below.
 
 #### `visibleOnLoad`
 
@@ -199,7 +154,7 @@ If you use a [custom navbar](../guide/navbar.md) you will need to manually add t
 
 | variable | default | description |
 | -------- | ------- | ----------- |
-| $psv-gallery-breakpoint | 500px | Screen size bellow which the gallery is displayed full-height |
+| $psv-gallery-breakpoint | 500px | Screen size below which the gallery is displayed full-height |
 | $psv-gallery-padding | 15px | Padding of the container |
 | $psv-gallery-border | 1px solid $psv-caption-text-color | Border between the gallery and the navbar |
 | $psv-gallery-background | $psv-navbar-background | Background of the gallery |

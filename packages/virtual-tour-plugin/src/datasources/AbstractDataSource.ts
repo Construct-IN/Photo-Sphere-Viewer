@@ -8,16 +8,14 @@ export abstract class AbstractDatasource {
 
     constructor(
         protected readonly plugin: VirtualTourPlugin,
-        protected readonly viewer: Viewer
+        protected readonly viewer: Viewer,
     ) {}
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     destroy() {}
 
     /**
-     * @summary Loads a node
-     * @param {string} nodeId
-     * @return {Promise<PSV.plugins.VirtualTourPlugin.Node>}
+     * Loads a node
      */
     abstract loadNode(nodeId: string): Promise<VirtualTourNode>;
 
@@ -39,8 +37,12 @@ export abstract class AbstractDatasource {
         if (this.plugin.isGps && !(node.gps?.length >= 2)) {
             throw new PSVError(`No GPS position provided for node ${node.id}`);
         }
-        if (!this.plugin.isGps && node.markers?.some((marker) => marker.gps && !marker.position)) {
+        if (!this.plugin.isGps && node.markers?.some(marker => marker.gps && !marker.position)) {
             throw new PSVError(`Cannot use GPS positioning for markers in manual mode`);
+        }
+        if (!node.links) {
+            utils.logWarn(`Node ${node.id} has no links`);
+            node.links = [];
         }
     }
 
@@ -50,6 +52,9 @@ export abstract class AbstractDatasource {
     protected checkLink(node: VirtualTourNode, link: VirtualTourLink) {
         if (!link.nodeId) {
             throw new PSVError(`Link of node ${node.id} has no target id`);
+        }
+        if (link.nodeId === node.id) {
+            throw new PSVError(`Node ${node.id} links to itself`);
         }
         if (Array.isArray(link.position)) {
             utils.logWarn('Use the "gps" property to configure the GPS position of a virtual link');

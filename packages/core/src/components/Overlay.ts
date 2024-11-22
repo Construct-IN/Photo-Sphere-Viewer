@@ -1,7 +1,8 @@
 import { CAPTURE_EVENTS_CLASS, KEY_CODES } from '../data/constants';
-import { PSVError } from '../PSVError';
-import type { Viewer } from '../Viewer';
 import { HideOverlayEvent, KeypressEvent, ShowOverlayEvent } from '../events';
+import { PSVError } from '../PSVError';
+import { logWarn } from '../utils';
+import type { Viewer } from '../Viewer';
 import { AbstractComponent } from './AbstractComponent';
 
 /**
@@ -25,10 +26,14 @@ export type OverlayConfig = {
      */
     text?: string;
     /**
+     * @deprecated Use `dismissible`
+     */
+    dissmisable?: boolean;
+    /**
      * if the user can hide the overlay by clicking
      * @default true
      */
-    dissmisable?: boolean;
+    dismissible?: boolean;
 };
 
 /**
@@ -41,7 +46,7 @@ export class Overlay extends AbstractComponent {
     protected override readonly state = {
         visible: false,
         contentId: null as string,
-        dissmisable: true,
+        dismissible: true,
     };
 
     private readonly image: HTMLElement;
@@ -88,12 +93,12 @@ export class Overlay extends AbstractComponent {
      */
     handleEvent(e: Event) {
         if (e.type === 'click') {
-            if (this.isVisible() && this.state.dissmisable) {
+            if (this.isVisible() && this.state.dismissible) {
                 this.hide();
                 e.stopPropagation();
             }
         } else if (e instanceof KeypressEvent) {
-            if (this.isVisible() && this.state.dissmisable && e.key === KEY_CODES.Escape) {
+            if (this.isVisible() && this.state.dismissible && e.key === KEY_CODES.Escape) {
                 this.hide();
                 e.preventDefault();
             }
@@ -123,15 +128,20 @@ export class Overlay extends AbstractComponent {
             config = { title: config };
         }
 
+        if ('dissmisable' in config) {
+            logWarn('Replace "dissmisable" by "dismissible"');
+            config.dismissible = config.dissmisable;
+        }
+
         this.state.contentId = config.id || null;
-        this.state.dissmisable = config.dissmisable !== false;
+        this.state.dismissible = config.dismissible !== false;
         this.image.innerHTML = config.image || '';
         this.title.innerHTML = config.title || '';
         this.text.innerHTML = config.text || '';
 
         super.show();
 
-        this.viewer.dispatchEvent(new ShowOverlayEvent(config.id));
+        this.viewer.dispatchEvent(new ShowOverlayEvent(this.state.contentId));
     }
 
     /**

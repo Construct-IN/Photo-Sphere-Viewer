@@ -7,12 +7,14 @@ This adapter is available in the [@photo-sphere-viewer/cubemap-video-adapter](ht
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.CubemapVideoAdapter,
+import { CubemapVideoAdapter } from '@photo-sphere-viewer/cubemap-video-adapter';
+
+const viewer = new Viewer({
+    adapter: CubemapVideoAdapter,
     panorama: {
-        source: 'path/video.mp4', // also supports webm
+        source: 'path/video.mp4',
     },
-    plugins: [PhotoSphereViewer.VideoPlugin],
+    plugins: [VideoPlugin],
 });
 ```
 
@@ -28,57 +30,14 @@ This adapter requires to use the [VideoPlugin](../../plugins/video.md).
 title: PSV Cubemap Video Demo
 packages:
     - name: cubemap-video-adapter
-      imports: CubemapVideoAdapter
     - name: video-plugin
-      imports: VideoPlugin
       style: true
     - name: settings-plugin
-      imports: SettingsPlugin
       style: true
     - name: resolution-plugin
-      imports: ResolutionPlugin
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: [CubemapVideoAdapter, {
-        muted: true,
-    }],
-    caption: 'Dreams of Dalí <b>&copy; The Dalí Museum</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-    navbar: 'video caption settings fullscreen',
-
-    plugins: [
-        VideoPlugin,
-        SettingsPlugin,
-        [ResolutionPlugin, {
-            defaultResolution: 'HD',
-            resolutions: [
-                {
-                    id: 'UHD',
-                    label: 'Ultra high',
-                    panorama: { source: baseUrl + 'cubemap-video/DreamOfDali_UHD.webm' },
-                },
-                {
-                    id: 'FHD',
-                    label: 'High',
-                    panorama: { source: baseUrl + 'cubemap-video/DreamOfDali_FHD.webm' },
-                },
-                {
-                    id: 'HD',
-                    label: 'Standard',
-                    panorama: { source: baseUrl + 'cubemap-video/DreamOfDali_HD.webm' },
-                },
-            ],
-        }],
-    ],
-});
-```
+<<< ./demos-src/cubemap-video.js
 
 :::
 
@@ -108,9 +67,11 @@ When using this adapter, the `panorama` option and the `setPanorama()` method ac
 
 #### `source` (required)
 
--   type: `string`
+-   type: `string | MediaStream | HTMLVideoElement`
 
 Path of the video file. The video must not be larger than 4096 pixels or it won't be displayed on handled devices.
+
+It can also be an existing `MediaStream`, for example to display the feed of an USB 360° camera, or a pre-existing `HTMLVideoElement` for more control over video playback.
 
 #### `equiangular`
 
@@ -125,4 +86,4 @@ This adapter supports video files consisting of a grid of the six faces of the c
 
 The layout of a frame must be as follow:
 
-![cubemap-video](../../images/cubemap-video.png)
+![cubemap-video](/images/cubemap-video.png)

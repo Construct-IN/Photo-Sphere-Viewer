@@ -10,7 +10,7 @@ export type CubemapTileConfig = CubemapTileLevel & {
 };
 
 function isMultiTiles(
-    panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama
+    panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
 ): panorama is CubemapMultiTilesPanorama {
     return !!(panorama as CubemapMultiTilesPanorama).levels;
 }
@@ -27,7 +27,7 @@ function computeTileConfig(tile: CubemapTileLevel, level: number, data: { CUBE_S
 export function getTileConfig(
     panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
     zoomLevel: number,
-    data: { CUBE_SEGMENTS: number }
+    data: { CUBE_SEGMENTS: number },
 ): CubemapTileConfig {
     let tile: CubemapTileLevel;
     let level: number;
@@ -47,7 +47,7 @@ export function getTileConfig(
 export function getTileConfigByIndex(
     panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
     level: number,
-    data: { CUBE_SEGMENTS: number }
+    data: { CUBE_SEGMENTS: number },
 ): CubemapTileConfig {
     if (!isMultiTiles(panorama) || !panorama.levels[level]) {
         return null;
@@ -58,13 +58,13 @@ export function getTileConfigByIndex(
 
 export function checkPanoramaConfig(
     panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
-    data: { CUBE_SEGMENTS: number }
+    data: { CUBE_SEGMENTS: number },
 ) {
     if (typeof panorama !== 'object' || !panorama.tileUrl) {
         throw new PSVError('Invalid panorama configuration, are you using the right adapter?');
     }
     if (isMultiTiles(panorama)) {
-        panorama.levels.forEach((level) => checkTile(level, data));
+        panorama.levels.forEach(level => checkTile(level, data));
         checkTilesLevels(panorama.levels);
     } else {
         checkTile(panorama, data);
@@ -88,4 +88,22 @@ function checkTile(tile: CubemapTilesPanorama | CubemapTileLevel, data: { CUBE_S
  */
 export function isTopOrBottom(face: number) {
     return face === 2 || face === 3;
+}
+
+/**
+ * Returns a path used for cache key
+ */
+export function getCacheKey(
+    panorama: CubemapTilesPanorama | CubemapMultiTilesPanorama,
+    firstTile: CubemapTileConfig,
+): string {
+    // some tiles might be "null"
+    for (let i = 0; i < firstTile.nbTiles; i++) {
+        const url = panorama.tileUrl('front', i, firstTile.nbTiles / 2, firstTile.level);
+        if (url) {
+            return url;
+        }
+    }
+
+    return panorama.tileUrl.toString();
 }

@@ -37,6 +37,7 @@ const getConfig = utils.getConfigParser<MapPluginConfig, ParsedMapPluginConfig>(
         minZoom: 20,
         maxZoom: 200,
         hotspots: [],
+        minimizeOnHotspotClick: true,
         buttons: {
             maximize: true,
             close: true,
@@ -49,13 +50,13 @@ const getConfig = utils.getConfigParser<MapPluginConfig, ParsedMapPluginConfig>(
         position: (position, { defValue }) => {
             return utils.cleanCssPosition(position, { allowCenter: false, cssOrder: true }) || defValue;
         },
-        rotation: (rotation) => utils.parseAngle(rotation),
-        coneColor: (coneColor) => (coneColor ? new Color(coneColor).getStyle() : null), // must be in rgb format
-        defaultZoom: (defaultZoom) => Math.log(defaultZoom / 100),
-        maxZoom: (maxZoom) => Math.log(maxZoom / 100),
-        minZoom: (minZoom) => Math.log(minZoom / 100),
+        rotation: rotation => utils.parseAngle(rotation),
+        coneColor: coneColor => (coneColor ? new Color(coneColor).getStyle() : null), // must be in rgb format
+        defaultZoom: defaultZoom => Math.log(defaultZoom / 100),
+        maxZoom: maxZoom => Math.log(maxZoom / 100),
+        minZoom: minZoom => Math.log(minZoom / 100),
         buttons: (buttons, { defValue }) => ({ ...defValue, ...buttons }),
-    }
+    },
 );
 
 /**
@@ -282,7 +283,7 @@ export class MapPlugin extends AbstractConfigurablePlugin<
 
     private __markersToHotspots(markers: Marker[]): MapHotspot[] {
         return markers
-            .filter((marker) => marker.data?.[MARKER_DATA_KEY])
+            .filter(marker => marker.data?.[MARKER_DATA_KEY])
             .map((marker) => {
                 const hotspot: MapHotspot = {
                     ...marker.data[MARKER_DATA_KEY],
@@ -299,6 +300,6 @@ export class MapPlugin extends AbstractConfigurablePlugin<
 
                 return hotspot;
             })
-            .filter((h) => h);
+            .filter(h => h);
     }
 }

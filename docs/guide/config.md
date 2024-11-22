@@ -1,7 +1,5 @@
 # Configuration
 
-[[toc]]
-
 ::: tip Angles definitions
 Photo Sphere Viewer uses a lot of angles for its configuration, most of them can be defined in radians by using a simple number (`3.5`) or in degrees using the "deg" suffix (`'55deg'`).
 :::
@@ -16,7 +14,7 @@ HTML element which will contain the panorama, or identifier of the element.
 
 ```js
 container: document.querySelector('.viewer');
-
+container: '.viewer'; // will target [class="viewer"]
 container: 'viewer'; // will target [id="viewer"]
 ```
 
@@ -36,7 +34,7 @@ Which [adapter](./adapters/) used to load the panorama.
 
 -   type: `array`
 
-List of enabled [plugins](../plugins/README.md).
+List of enabled [plugins](../plugins/).
 
 #### `caption`
 
@@ -60,7 +58,7 @@ Define the file which will be downloaded with the `download` button. This is par
 #### `downloadName`
 
 -   type: `string`
--   default: `panorama` or `downloadUrl` filename
+-   default: `=downloadUrl` filename
 
 Overrides the filename when downloading the panorama. This is mostly useful if the panorama is provided as base64.
 
@@ -212,7 +210,7 @@ Allows to fix the panorama orientation.
 
 **Note:** if the XMP data contains pose heading/pitch/roll data, they will be applied before `sphereCorrection`.
 
-![pan-tilt-toll](../images/pan-tilt-roll.png)
+![pan-tilt-toll](/images/pan-tilt-roll.png)
 
 #### `panoData`
 
@@ -224,15 +222,15 @@ All parameters are optional.
 ```js
 panoData: {
   fullWidth: 6000,
-  fullHeight: 3000,
-  croppedWidth: 4000,
-  croppedHeight: 2000,
+  fullHeight: 3000, // optional
+  croppedWidth: 4000, // optional
+  croppedHeight: 2000, // optional
   croppedX: 1000,
   croppedY: 500,
 }
 ```
 
-It can also be a function to dynamically compute the cropping config depending on the loaded image.
+It can also be a function to dynamically compute the cropping config depending on the loaded image (note that a [default setting](./adapters/equirectangular.md#default-parameters) is already applied when no data is found).
 
 ```js
 panoData: (image, xmpData) => ({
@@ -244,10 +242,6 @@ panoData: (image, xmpData) => ({
     croppedY: Math.round((image.width / 2 - image.height) / 2),
 });
 ```
-
-::: warning
-Only the default [equirectangular](./adapters/equirectangular.md) adapter supports `panoData`.
-:::
 
 #### `moveSpeed`
 
@@ -285,10 +279,10 @@ requestHeaders: (url) => ({
 
 #### `moveInertia`
 
--   type: `boolean`
--   default: `true`
+-   type: `boolean | number`
+-   default: `0.8`
 
-Enabled smooth animation after a manual move.
+Applies damping to the camera movement, higher value mean stronger damping (`true` is default damping factor, `false` is not damping).
 
 #### `withCredentials`
 
@@ -317,12 +311,14 @@ keyboardActions: {
 
 Configure keyboard actions. It is a map defining key code->action. (all the available actions are listed above)
 
-You can also configure an arbitrary callback to any key.
+You can also configure an arbitrary callback to any key, it receives the viewer itself and the original keyboard event as parameters.
 
 ```js
+import { DEFAULTS } from '@photo-sphere-viewer/core';
+
 keyboardActions: {
-  ...PhotoSphereViewer.DEFAULTS.keyboardActions,
-  'h': (viewer) => {
+  ...DEFAULTS.keyboardActions,
+  'h': (viewer, evt) => {
       if (viewer.panel.isVisible('help')) {
           viewer.panel.hide();
       } else {
@@ -332,13 +328,24 @@ keyboardActions: {
           });
       }
   },
-  'f': (viewer) => viewer.toggleFullscreen(),
+  'f': (viewer, evt) => {
+    if (!evt.ctrlKey && !evt.altKey) {
+      viewer.toggleFullscreen(),
+    }
+  },
 },
 ```
 
 ::: warning
 Keyboard actions will only be available in fullscreen by default, this can be changed with the [`keyboard` option](#keyboard).
 :::
+
+#### `canvasBackground`
+
+-   type: `string`
+-   default: `#000`
+
+Background of the canvas, which will be visible when using cropped panoramas. Can be any valid CSS `background` value.
 
 #### `rendererParameters`
 

@@ -38,6 +38,12 @@ export type CompassPluginConfig = {
     navigation?: boolean;
 
     /**
+     * Reset viewer pitch to `defaultPitch` when using the compass navigation
+     * @default false
+     */
+    resetPitch?: boolean;
+
+    /**
      * color of the navigation cone
      * @default 'rgba(255, 0, 0, 0.2)'
      */

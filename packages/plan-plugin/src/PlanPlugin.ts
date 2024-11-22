@@ -34,6 +34,7 @@ const getConfig = utils.getConfigParser<PlanPluginConfig>(
         }],
         configureLeaflet: null,
         hotspots: [],
+        minimizeOnHotspotClick: true,
         buttons: {
             maximize: true,
             close: true,
@@ -45,9 +46,9 @@ const getConfig = utils.getConfigParser<PlanPluginConfig>(
         position: (position, { defValue }) => {
             return utils.cleanCssPosition(position, { allowCenter: false, cssOrder: true }) || defValue;
         },
-        bearing: (bearing) => utils.parseAngle(bearing),
+        bearing: bearing => utils.parseAngle(bearing),
         buttons: (buttons, { defValue }) => ({ ...defValue, ...buttons }),
-    }
+    },
 );
 
 /**
@@ -262,7 +263,7 @@ export class PlanPlugin extends AbstractConfigurablePlugin<
 
     private __markersToHotspots(markers: Marker[]): PlanHotspot[] {
         return markers
-            .filter((marker) => marker.data?.[MARKER_DATA_KEY])
+            .filter(marker => marker.data?.[MARKER_DATA_KEY])
             .map((marker) => {
                 const hotspot: PlanHotspot = {
                     ...marker.data[MARKER_DATA_KEY],
@@ -277,6 +278,6 @@ export class PlanPlugin extends AbstractConfigurablePlugin<
 
                 return hotspot;
             })
-            .filter((h) => h);
+            .filter(h => h);
     }
 }

@@ -4,7 +4,7 @@ import { BufferGeometry, Material, Mesh, VideoTexture } from 'three';
 import { createVideo } from './video-utils';
 
 export type AbstractVideoPanorama = {
-    source: string;
+    source: string | MediaStream | HTMLVideoElement;
 };
 
 export type AbstractVideoAdapterConfig = {
@@ -21,15 +21,16 @@ export type AbstractVideoAdapterConfig = {
 };
 
 type AbstractVideoMesh = Mesh<BufferGeometry, Material>;
-type AbstractVideoTexture = TextureData<VideoTexture>;
+type AbstractVideoTextureData = TextureData<VideoTexture>;
 
 /**
  * Base video adapters class
  */
 export abstract class AbstractVideoAdapter<
     TPanorama extends AbstractVideoPanorama,
-    TData
-> extends AbstractAdapter<TPanorama, VideoTexture, TData> {
+    TData,
+    TMesh extends AbstractVideoMesh,
+> extends AbstractAdapter<TPanorama, TData, VideoTexture, TMesh> {
     static override readonly supportsDownload = false;
 
     protected abstract readonly config: AbstractVideoAdapterConfig;
@@ -60,7 +61,7 @@ export abstract class AbstractVideoAdapter<
         return false;
     }
 
-    loadTexture(panorama: AbstractVideoPanorama): Promise<AbstractVideoTexture> {
+    async loadTexture(panorama: AbstractVideoPanorama): Promise<AbstractVideoTextureData> {
         if (typeof panorama !== 'object' || !panorama.source) {
             return Promise.reject(new PSVError('Invalid panorama configuration, are you using the right adapter?'));
         }
@@ -69,17 +70,19 @@ export abstract class AbstractVideoAdapter<
             return Promise.reject(new PSVError('Video adapters require VideoPlugin to be loaded too.'));
         }
 
-        const video = createVideo({
-            src: panorama.source,
-            withCredentials: this.viewer.config.withCredentials,
-            muted: this.config.muted,
-            autoplay: false,
-        });
+        const video = panorama.source instanceof HTMLVideoElement
+            ? panorama.source
+            : createVideo({
+                src: panorama.source,
+                withCredentials: this.viewer.config.withCredentials,
+                muted: this.config.muted,
+                autoplay: false,
+            });
 
-        return this.__videoLoadPromise(video).then(() => {
-            const texture = new VideoTexture(video);
-            return { panorama, texture };
-        });
+        await this.__videoLoadPromise(video);
+
+        const texture = new VideoTexture(video);
+        return { panorama, texture };
     }
 
     protected switchVideo(texture: VideoTexture) {
@@ -110,13 +113,18 @@ export abstract class AbstractVideoAdapter<
         }
     }
 
-    setTextureOpacity(mesh: AbstractVideoMesh, opacity: number) {
+    setTextureOpacity(mesh: TMesh, opacity: number) {
         mesh.material.opacity = opacity;
         mesh.material.transparent = opacity < 1;
     }
 
-    disposeTexture(textureData: AbstractVideoTexture): void {
-        textureData.texture.dispose();
+    disposeTexture({ texture }: AbstractVideoTextureData) {
+        texture.dispose();
+    }
+
+    disposeMesh(mesh: AbstractVideoMesh) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
     }
 
     private __removeVideo() {

@@ -1,5 +1,5 @@
 import type { Position, Viewer } from '@photo-sphere-viewer/core';
-import { AbstractComponent, CONSTANTS, utils } from '@photo-sphere-viewer/core';
+import { AbstractComponent, CONSTANTS, events, utils } from '@photo-sphere-viewer/core';
 import type { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import type { GalleryPlugin, events as GalleryEvents } from '@photo-sphere-viewer/gallery-plugin';
 import { Control, Layer, Map, Marker, TileLayer } from 'leaflet';
@@ -57,11 +57,14 @@ export class PlanComponent extends AbstractComponent {
 
     constructor(
         viewer: Viewer,
-        private plugin: PlanPlugin
+        private plugin: PlanPlugin,
     ) {
         super(viewer, {
             className: `psv-plan ${CONSTANTS.CAPTURE_EVENTS_CLASS}`,
         });
+
+        viewer.addEventListener(events.KeypressEvent.type, this);
+        viewer.addEventListener(events.ConfigChangedEvent.type, this);
 
         const mapContainer = document.createElement('div');
         mapContainer.className = 'psv-plan__container';
@@ -109,36 +112,7 @@ export class PlanComponent extends AbstractComponent {
         if (this.config.configureLeaflet) {
             this.config.configureLeaflet(this.map);
         } else {
-            this.state.layers = this.config.layers.reduce((acc, layer, i) => {
-                if (!layer.name) {
-                    layer.name = `Layer ${i+1}`;
-                }
-
-                if (layer.urlTemplate) {
-                    acc[layer.name] = new TileLayer(layer.urlTemplate, { attribution: layer.attribution });
-                } else if (layer.layer) {
-                    if (layer.attribution) {
-                        layer.layer.options.attribution = layer.attribution;
-                    }
-                    acc[layer.name] = layer.layer;
-                } else {
-                    utils.logWarn(`Layer #${i} is missing "urlTemplate" or "layer" property.`);
-                }
-                return acc;
-            }, {} as Record<string, Layer>);
-
-            if (!Object.values(this.state.layers).length) {
-                utils.logWarn(`No layer configured, fallback to OSM.`);
-                this.state.layers[OSM_LABEL] = new TileLayer(OSM_URL, { attribution: OSM_ATTRIBUTION });
-            }
-
-            const layersNames = Object.keys(this.state.layers);
-
-            this.setLayer(layersNames[0]);
-
-            if (layersNames.length > 1) {
-                this.layersButton.setLayers(layersNames);
-            }
+            this.__configureLeaflet();
         }
 
         this.map.fitWorld();
@@ -158,6 +132,9 @@ export class PlanComponent extends AbstractComponent {
     override destroy(): void {
         cancelAnimationFrame(this.state.renderLoop);
 
+        this.viewer.removeEventListener(events.KeypressEvent.type, this);
+        this.viewer.removeEventListener(events.ConfigChangedEvent.type, this);
+
         this.gallery?.removeEventListener('show-gallery', this);
         this.gallery?.removeEventListener('hide-gallery', this);
 
@@ -165,10 +142,24 @@ export class PlanComponent extends AbstractComponent {
     }
 
     handleEvent(e: Event) {
-        if (utils.getClosest(e.target as HTMLElement, `.${CONSTANTS.CAPTURE_EVENTS_CLASS}:not(.psv-plan)`)) {
+        if (utils.getMatchingTarget(e, `.${CONSTANTS.CAPTURE_EVENTS_CLASS}:not(.psv-plan)`)) {
             return;
         }
         switch (e.type) {
+            case events.KeypressEvent.type:
+                if (this.state.maximized) {
+                    this.__onKeyPress((e as events.KeypressEvent).key);
+                    e.preventDefault();
+                }
+                break;
+            case events.ConfigChangedEvent.type:
+                if ((e as events.ConfigChangedEvent).containsOptions('lang')) {
+                    this.resetButton?.update();
+                    this.closeButton?.update();
+                    this.layersButton?.update();
+                    this.maximizeButton?.update();
+                }
+                break;
             case 'transitionstart':
                 this.state.forceRender = true;
                 break;
@@ -186,12 +177,48 @@ export class PlanComponent extends AbstractComponent {
         }
     }
 
+    /**
+     * Applies default configuration
+     */
+    private __configureLeaflet() {
+        this.state.layers = this.config.layers.reduce((acc, layer, i) => {
+            if (!layer.name) {
+                layer.name = `Layer ${i + 1}`;
+            }
+
+            if (layer.urlTemplate) {
+                acc[layer.name] = new TileLayer(layer.urlTemplate, { attribution: layer.attribution });
+            } else if (layer.layer) {
+                if (layer.attribution) {
+                    layer.layer.options.attribution = layer.attribution;
+                }
+                acc[layer.name] = layer.layer;
+            } else {
+                utils.logWarn(`Layer #${i} is missing "urlTemplate" or "layer" property.`);
+            }
+            return acc;
+        }, {} as Record<string, Layer>);
+
+        if (!Object.values(this.state.layers).length) {
+            utils.logWarn(`No layer configured, fallback to OSM.`);
+            this.state.layers[OSM_LABEL] = new TileLayer(OSM_URL, { attribution: OSM_ATTRIBUTION });
+        }
+
+        const layersNames = Object.keys(this.state.layers);
+
+        this.setLayer(layersNames[0]);
+
+        if (layersNames.length > 1) {
+            this.layersButton.setLayers(layersNames);
+        }
+    }
+
     applyConfig() {
         this.container.classList.remove(
             'psv-plan--top-right',
             'psv-plan--top-left',
             'psv-plan--bottom-right',
-            'psv-plan--bottom-left'
+            'psv-plan--bottom-left',
         );
         this.container.classList.add(`psv-plan--${this.config.position.join('-')}`);
 
@@ -336,6 +363,8 @@ export class PlanComponent extends AbstractComponent {
             this.map.getContainer().focus();
             this.plugin.dispatchEvent(new ViewChanged('maximized'));
         } else {
+            this.map.getContainer().blur();
+
             if (this.state.galleryWasVisible) {
                 this.gallery.show();
             }
@@ -467,7 +496,7 @@ export class PlanComponent extends AbstractComponent {
             this.viewer.getPlugin<MarkersPlugin>('markers').gotoMarker(markerId);
         }
 
-        if (this.maximized) {
+        if (this.maximized && this.config.minimizeOnHotspotClick) {
             this.toggleMaximized();
         }
     }
@@ -480,4 +509,10 @@ export class PlanComponent extends AbstractComponent {
         }
     }
 
+    private __onKeyPress(key: string) {
+        if (key === CONSTANTS.KEY_CODES.Escape) {
+            this.toggleMaximized();
+            return;
+        }
+    }
 }

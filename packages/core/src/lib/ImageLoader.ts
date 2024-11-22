@@ -5,15 +5,13 @@ import { Loader } from 'three';
  * Also removing all unused features for PSV
  */
 export class ImageLoader extends Loader<HTMLImageElement, string> {
-
     // @ts-ignore
     load(
         url: string,
         onLoad: (data: HTMLImageElement) => void,
         onError: (err: unknown) => void,
-        abortSignal?: AbortSignal
+        abortSignal?: AbortSignal,
     ) {
-
         const image = document.createElement('img');
 
         function onImageLoad(this: HTMLImageElement) {
@@ -31,7 +29,6 @@ export class ImageLoader extends Loader<HTMLImageElement, string> {
                 e.name = 'AbortError';
                 e.message = 'The operation was aborted.';
                 onError(e);
-
             } else {
                 onError(event);
             }
@@ -61,5 +58,4 @@ export class ImageLoader extends Loader<HTMLImageElement, string> {
 
         return image;
     }
-
 }

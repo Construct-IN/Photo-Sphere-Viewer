@@ -1,9 +1,9 @@
 import { Euler, LinearFilter, LinearMipmapLinearFilter, MathUtils, Quaternion, Texture, Vector3 } from 'three';
 import { PSVError } from '../PSVError';
-import { ExtendedPosition, Point, ResolvableBoolean } from '../model';
+import { ExtendedPosition, PanoData, Point, ResolvableBoolean } from '../model';
 import { getStyleProperty } from './browser';
 import { wrap } from './math';
-import { clone, isPlainObject } from './misc';
+import { clone, firstNonNull, isPlainObject } from './misc';
 
 /**
  * Executes a callback with the value of a ResolvableBoolean
@@ -11,7 +11,7 @@ import { clone, isPlainObject } from './misc';
 export function resolveBoolean(value: boolean | ResolvableBoolean, cb: (val: boolean, init: boolean) => void) {
     if (isPlainObject(value)) {
         cb((value as ResolvableBoolean).initial, true);
-        (value as ResolvableBoolean).promise.then((res) => cb(res, false));
+        (value as ResolvableBoolean).promise.then(res => cb(res, false));
     } else {
         cb(value as boolean, true);
     }
@@ -23,7 +23,7 @@ export function resolveBoolean(value: boolean | ResolvableBoolean, cb: (val: boo
 export function invertResolvableBoolean(value: ResolvableBoolean): ResolvableBoolean {
     return {
         initial: !value.initial,
-        promise: value.promise.then((res) => !res),
+        promise: value.promise.then(res => !res),
     };
 }
 
@@ -124,7 +124,7 @@ export function parsePoint(value: string | Point): Point {
 
     const xFirst = tokens[1] !== 'left' && tokens[1] !== 'right' && tokens[0] !== 'top' && tokens[0] !== 'bottom';
 
-    tokens = tokens.map((token) => CSS_POSITIONS[token] || token);
+    tokens = tokens.map(token => CSS_POSITIONS[token] || token);
 
     if (!xFirst) {
         tokens.reverse();
@@ -154,7 +154,7 @@ export function cleanCssPosition(
     { allowCenter, cssOrder } = {
         allowCenter: true,
         cssOrder: true,
-    }
+    },
 ): [string, string] | null {
     if (!value) {
         return null;
@@ -330,7 +330,7 @@ export function parseAngle(angle: string | number, zeroCenter = false, halfCircl
 /**
  * Creates a THREE texture from an image
  */
-export function createTexture(img: HTMLImageElement | HTMLCanvasElement, mimaps = false): Texture {
+export function createTexture(img: TexImageSource, mimaps = false): Texture {
     const texture = new Texture(img);
     texture.needsUpdate = true;
     texture.minFilter = mimaps ? LinearMipmapLinearFilter : LinearFilter;
@@ -395,7 +395,7 @@ export type ConfigParser<T, U extends T> = {
  */
 export function getConfigParser<T extends Record<string, any>, U extends T = T>(
     defaults: Required<U>,
-    parsers?: ConfigParsers<T, U>
+    parsers?: ConfigParsers<T, U>,
 ): ConfigParser<T, U> {
     const parser = function (userConfig: T): U {
         const rawConfig: U = clone({
@@ -445,4 +445,89 @@ export function checkVersion(name: string, version: string, coreVersion: string)
     if (version && version !== coreVersion) {
         console.error(`PhotoSphereViewer: @photo-sphere-viewer/${name} is in version ${version} but @photo-sphere-viewer/core is in version ${coreVersion}`);
     }
+}
+
+/**
+ * Checks if the viewer is not used insude a closed shadow DOM
+ */
+export function checkClosedShadowDom(el: Node) {
+    do {
+        if (el instanceof ShadowRoot && el.mode === 'closed') {
+            console.error(`PhotoSphereViewer: closed shadow DOM detected, the viewer might not work as expected`);
+            return;
+        }
+        el = el.parentNode;
+    } while (el);
+}
+
+/**
+ * Merge XMP data with custom panoData, also apply default behaviour when data is missing
+ */
+export function mergePanoData(width: number, height: number, newPanoData?: PanoData, xmpPanoData?: PanoData): PanoData {
+    if (!newPanoData && !xmpPanoData) {
+        const fullWidth = Math.max(width, height * 2);
+        const fullHeight = Math.round(fullWidth / 2);
+        const croppedX = Math.round((fullWidth - width) / 2);
+        const croppedY = Math.round((fullHeight - height) / 2);
+
+        newPanoData = {
+            fullWidth: fullWidth,
+            fullHeight: fullHeight,
+            croppedWidth: width,
+            croppedHeight: height,
+            croppedX: croppedX,
+            croppedY: croppedY,
+        };
+    }
+
+    const panoData: PanoData = {
+        isEquirectangular: true,
+        fullWidth: firstNonNull(newPanoData?.fullWidth, xmpPanoData?.fullWidth),
+        fullHeight: firstNonNull(newPanoData?.fullHeight, xmpPanoData?.fullHeight),
+        croppedWidth: firstNonNull(newPanoData?.croppedWidth, xmpPanoData?.croppedWidth, width),
+        croppedHeight: firstNonNull(newPanoData?.croppedHeight, xmpPanoData?.croppedHeight, height),
+        croppedX: firstNonNull(newPanoData?.croppedX, xmpPanoData?.croppedX, 0),
+        croppedY: firstNonNull(newPanoData?.croppedY, xmpPanoData?.croppedY, 0),
+        poseHeading: firstNonNull(newPanoData?.poseHeading, xmpPanoData?.poseHeading, 0),
+        posePitch: firstNonNull(newPanoData?.posePitch, xmpPanoData?.posePitch, 0),
+        poseRoll: firstNonNull(newPanoData?.poseRoll, xmpPanoData?.poseRoll, 0),
+        initialHeading: xmpPanoData?.initialHeading,
+        initialPitch: xmpPanoData?.initialPitch,
+        initialFov: xmpPanoData?.initialFov,
+    };
+
+    if (!panoData.fullWidth && panoData.fullHeight) {
+        panoData.fullWidth = panoData.fullHeight * 2;
+    } else if (!panoData.fullWidth || !panoData.fullHeight) {
+        panoData.fullWidth = panoData.fullWidth ?? width;
+        panoData.fullHeight = panoData.fullHeight ?? height;
+    }
+
+    if (panoData.croppedWidth !== width || panoData.croppedHeight !== height) {
+        logWarn(`Invalid panoData, croppedWidth/croppedHeight is not coherent with the loaded image.
+        panoData: ${panoData.croppedWidth}x${panoData.croppedHeight}, image: ${width}x${height}`);
+    }
+
+    if (Math.abs(panoData.fullWidth - panoData.fullHeight * 2) > 1) {
+        logWarn('Invalid panoData, fullWidth should be twice fullHeight');
+        panoData.fullHeight = Math.round(panoData.fullWidth / 2);
+    }
+    if (panoData.croppedX + panoData.croppedWidth > panoData.fullWidth) {
+        logWarn('Invalid panoData, croppedX + croppedWidth > fullWidth');
+        panoData.croppedX = panoData.fullWidth - panoData.croppedWidth;
+    }
+    if (panoData.croppedY + panoData.croppedHeight > panoData.fullHeight) {
+        logWarn('Invalid panoData, croppedY + croppedHeight > fullHeight');
+        panoData.croppedY = panoData.fullHeight - panoData.croppedHeight;
+    }
+    if (panoData.croppedX < 0) {
+        logWarn('Invalid panoData, croppedX < 0');
+        panoData.croppedX = 0;
+    }
+    if (panoData.croppedY < 0) {
+        logWarn('Invalid panoData, croppedY < 0');
+        panoData.croppedY = 0;
+    }
+
+    return panoData;
 }

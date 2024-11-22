@@ -38,7 +38,7 @@ export class ProgressEvent extends TypedEvent<VideoPlugin> {
     constructor(
         public readonly time: number,
         public readonly duration: number,
-        public readonly progress: number
+        public readonly progress: number,
     ) {
         super(ProgressEvent.type);
     }
@@ -57,8 +57,8 @@ export class BufferEvent extends TypedEvent<VideoPlugin> {
     }
 }
 
-export type VideoPluginEvents = 
-    | PlayPauseEvent 
-    | VolumeChangeEvent 
-    | ProgressEvent 
+export type VideoPluginEvents =
+    | PlayPauseEvent
+    | VolumeChangeEvent
+    | ProgressEvent
     | BufferEvent;

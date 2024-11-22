@@ -1,4 +1,4 @@
-import type { Cubemap, CubemapAdapterConfig, CubemapPanorama } from '@photo-sphere-viewer/cubemap-adapter';
+import type { Cubemap, CubemapAdapterConfig, CubemapData, CubemapPanorama } from '@photo-sphere-viewer/cubemap-adapter';
 
 /**
  * Configuration of a tiled cubemap
@@ -87,4 +87,8 @@ export type CubemapTilesAdapterConfig = CubemapAdapterConfig & {
      * @internal
      */
     debug?: boolean;
+};
+
+export type CubemapTilesPanoData = CubemapData & {
+    baseData: CubemapData;
 };

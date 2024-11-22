@@ -1,24 +1,22 @@
-import { BufferGeometry, Material, MathUtils, Mesh, MeshBasicMaterial, SphereGeometry, Texture } from 'three';
+import { MathUtils, Mesh, MeshBasicMaterial, SphereGeometry, Texture } from 'three';
 import { PSVError } from '../PSVError';
 import type { Viewer } from '../Viewer';
 import { SPHERE_RADIUS } from '../data/constants';
 import { SYSTEM } from '../data/system';
-import { PanoData, PanoDataProvider, PanoramaPosition, Position, TextureData } from '../model';
-import { createTexture, firstNonNull, getConfigParser, getXMPValue, isNil, logWarn } from '../utils';
+import { EquirectangularPanorama, PanoData, PanoDataProvider, PanoramaPosition, Position, TextureData } from '../model';
+import { createTexture, getConfigParser, getXMPValue, isNil, logWarn, mergePanoData } from '../utils';
 import { AbstractAdapter } from './AbstractAdapter';
-import { interpolationWorkerSrc } from './interpolationWorker';
 
 /**
  * Configuration for {@link EquirectangularAdapter}
  */
 export type EquirectangularAdapterConfig = {
     /**
-     * Background color of the canvas, which will be visible when using cropped panoramas
-     * @default '#000'
+     * @deprecated Use CSS to change the background color of '.psv-canvas'
      */
     backgroundColor?: string;
     /**
-     * Interpolate the missing parts of cropped panoramas (async)
+     * @deprecated Not supported anymore
      */
     interpolateBackground?: boolean;
     /**
@@ -38,12 +36,12 @@ export type EquirectangularAdapterConfig = {
     blur?: boolean;
 };
 
-export type EquirectangularMesh = Mesh<BufferGeometry, Material>;
-export type EquirectangularTexture = TextureData<Texture, string, PanoData>;
+export type EquirectangularMesh = Mesh<SphereGeometry, MeshBasicMaterial>;
+export type EquirectangularTextureData = TextureData<Texture, string | EquirectangularPanorama, PanoData>;
 
 const getConfig = getConfigParser<EquirectangularAdapterConfig>(
     {
-        backgroundColor: '#000',
+        backgroundColor: null,
         interpolateBackground: false,
         resolution: 64,
         useXmpData: true,
@@ -52,46 +50,51 @@ const getConfig = getConfigParser<EquirectangularAdapterConfig>(
     {
         resolution: (resolution) => {
             if (!resolution || !MathUtils.isPowerOfTwo(resolution)) {
-                throw new PSVError('EquirectangularAdapter resolution must be power of two');
+                throw new PSVError('EquirectangularAdapter resolution must be power of two.');
             }
             return resolution;
         },
-    }
+        backgroundColor: (backgroundColor) => {
+            if (backgroundColor) {
+                logWarn(`EquirectangularAdapter.backgroundColor is deprecated, use 'canvasBackground' main option instead.`);
+            }
+            return backgroundColor;
+        },
+        interpolateBackground: (interpolateBackground) => {
+            if (interpolateBackground) {
+                logWarn(`EquirectangularAdapter.interpolateBackground is not supported anymore.`);
+            }
+            return false;
+        },
+    },
 );
 
 /**
  * Adapter for equirectangular panoramas
  */
-export class EquirectangularAdapter extends AbstractAdapter<string, Texture, PanoData> {
+export class EquirectangularAdapter extends AbstractAdapter<string | EquirectangularPanorama, PanoData, Texture, EquirectangularMesh> {
     static override readonly id: string = 'equirectangular';
     static override readonly VERSION = PKG_VERSION;
     static override readonly supportsDownload: boolean = true;
 
     private readonly config: EquirectangularAdapterConfig;
 
-    private interpolationWorker: Worker;
-
-    readonly SPHERE_SEGMENTS: number;
-    readonly SPHERE_HORIZONTAL_SEGMENTS: number;
+    // @internal
+    public readonly SPHERE_SEGMENTS: number;
+    // @internal
+    public readonly SPHERE_HORIZONTAL_SEGMENTS: number;
 
     constructor(viewer: Viewer, config?: EquirectangularAdapterConfig) {
         super(viewer);
 
         this.config = getConfig(config);
 
-        if (this.config.interpolateBackground) {
-            if (!window.Worker) {
-                logWarn('Web Worker API not available');
-                this.config.interpolateBackground = false;
-            } else {
-                this.interpolationWorker = new Worker(interpolationWorkerSrc, {
-                    name: 'photo-sphere-viewer-interpolation',
-                });
-            }
-        }
-
         this.SPHERE_SEGMENTS = this.config.resolution;
         this.SPHERE_HORIZONTAL_SEGMENTS = this.SPHERE_SEGMENTS / 2;
+
+        if (this.config.backgroundColor) {
+            viewer.config.canvasBackground = config.backgroundColor;
+        }
     }
 
     override supportsTransition() {
@@ -100,12 +103,6 @@ export class EquirectangularAdapter extends AbstractAdapter<string, Texture, Pan
 
     override supportsPreload() {
         return true;
-    }
-
-    override destroy(): void {
-        this.interpolationWorker?.terminate();
-
-        super.destroy();
     }
 
     override textureCoordsToSphericalCoords(point: PanoramaPosition, data: PanoData): Position {
@@ -126,80 +123,60 @@ export class EquirectangularAdapter extends AbstractAdapter<string, Texture, Pan
         const relativeLong = (position.yaw / Math.PI / 2) * data.fullWidth;
         const relativeLat = (position.pitch / Math.PI) * data.fullHeight;
 
-        return {
-            textureX:
-                Math.round(
-                    position.yaw < Math.PI ? relativeLong + data.fullWidth / 2 : relativeLong - data.fullWidth / 2
-                ) - data.croppedX,
-            textureY: Math.round(data.fullHeight / 2 - relativeLat) - data.croppedY,
-        };
+        let textureX = Math.round(position.yaw < Math.PI ? relativeLong + data.fullWidth / 2 : relativeLong - data.fullWidth / 2) - data.croppedX;
+        let textureY = Math.round(data.fullHeight / 2 - relativeLat) - data.croppedY;
+
+        if (textureX < 0 || textureX > data.croppedWidth || textureY < 0 || textureY > data.croppedHeight) {
+            textureX = textureY = undefined;
+        }
+
+        return { textureX, textureY };
     }
 
     async loadTexture(
-        panorama: string,
+        panorama: string | EquirectangularPanorama,
         loader = true,
         newPanoData?: PanoData | PanoDataProvider,
-        useXmpPanoData = this.config.useXmpData
-    ): Promise<EquirectangularTexture> {
-        if (typeof panorama !== 'string') {
+        useXmpPanoData = this.config.useXmpData,
+    ): Promise<EquirectangularTextureData> {
+        if (typeof panorama !== 'string' && (typeof panorama !== 'object' || !panorama.path)) {
             return Promise.reject(new PSVError('Invalid panorama url, are you using the right adapter?'));
         }
 
+        let cleanPanorama: EquirectangularPanorama;
+        if (typeof panorama === 'string') {
+            cleanPanorama = {
+                path: panorama,
+                data: newPanoData,
+            };
+        } else {
+            cleanPanorama = {
+                data: newPanoData,
+                ...panorama,
+            };
+        }
+
         const blob = await this.viewer.textureLoader.loadFile(
-            panorama,
-            loader ? (p) => this.viewer.loader.setProgress(p) : null,
-            panorama
+            cleanPanorama.path,
+            loader ? p => this.viewer.loader.setProgress(p) : null,
+            cleanPanorama.path,
         );
         const xmpPanoData = useXmpPanoData ? await this.loadXMP(blob) : null;
         const img = await this.viewer.textureLoader.blobToImage(blob);
 
-        if (typeof newPanoData === 'function') {
-            newPanoData = newPanoData(img, xmpPanoData);
-        }
-        if (!newPanoData && !xmpPanoData) {
-            newPanoData = this.__defaultPanoData(img);
+        if (typeof cleanPanorama.data === 'function') {
+            cleanPanorama.data = cleanPanorama.data(img, xmpPanoData);
         }
 
-        const panoData: PanoData = {
-            isEquirectangular: true,
-            fullWidth: firstNonNull(newPanoData?.fullWidth, xmpPanoData?.fullWidth, img.width),
-            fullHeight: firstNonNull(newPanoData?.fullHeight, xmpPanoData?.fullHeight, img.height),
-            croppedWidth: firstNonNull(newPanoData?.croppedWidth, xmpPanoData?.croppedWidth, img.width),
-            croppedHeight: firstNonNull(newPanoData?.croppedHeight, xmpPanoData?.croppedHeight, img.height),
-            croppedX: firstNonNull(newPanoData?.croppedX, xmpPanoData?.croppedX, 0),
-            croppedY: firstNonNull(newPanoData?.croppedY, xmpPanoData?.croppedY, 0),
-            poseHeading: firstNonNull(newPanoData?.poseHeading, xmpPanoData?.poseHeading, 0),
-            posePitch: firstNonNull(newPanoData?.posePitch, xmpPanoData?.posePitch, 0),
-            poseRoll: firstNonNull(newPanoData?.poseRoll, xmpPanoData?.poseRoll, 0),
-            initialHeading: xmpPanoData?.initialHeading,
-            initialPitch: xmpPanoData?.initialPitch,
-            initialFov: xmpPanoData?.initialFov,
-        };
+        const panoData = mergePanoData(img.width, img.height, cleanPanorama.data, xmpPanoData);
 
-        if (panoData.croppedWidth !== img.width || panoData.croppedHeight !== img.height) {
-            logWarn(`Invalid panoData, croppedWidth/croppedHeight is not coherent with the loaded image.
-            panoData: ${panoData.croppedWidth}x${panoData.croppedHeight}, image: ${img.width}x${img.height}`);
-        }
-        if (Math.abs(panoData.fullWidth - panoData.fullHeight * 2) > 1) {
-            logWarn('Invalid panoData, fullWidth should be twice fullHeight');
-            panoData.fullWidth = panoData.fullHeight * 2;
-        }
-        if (panoData.croppedX + panoData.croppedWidth > panoData.fullWidth) {
-            logWarn('Invalid panoData, croppedX + croppedWidth > fullWidth');
-            panoData.croppedX = panoData.fullWidth - panoData.croppedWidth;
-        }
-        if (panoData.croppedY + panoData.croppedHeight > panoData.fullHeight) {
-            logWarn('Invalid panoData, croppedY + croppedHeight > fullHeight');
-            panoData.croppedY = panoData.fullHeight - panoData.croppedHeight;
-        }
-
-        const texture = this.createEquirectangularTexture(img, panoData);
+        const texture = this.createEquirectangularTexture(img);
 
         return {
             panorama,
             texture,
             panoData,
-            cacheKey: panorama,
+            cacheKey: cleanPanorama.path,
         };
     }
 
@@ -210,28 +187,34 @@ export class EquirectangularAdapter extends AbstractAdapter<string, Texture, Pan
         const binary = await this.loadBlobAsString(blob);
 
         const a = binary.indexOf('<x:xmpmeta');
-        const b = binary.indexOf('</x:xmpmeta>');
-        const data = binary.substring(a, b);
-
-        if (a !== -1 && b !== -1 && data.includes('GPano:')) {
-            return {
-                isEquirectangular: true,
-                fullWidth: getXMPValue(data, 'FullPanoWidthPixels'),
-                fullHeight: getXMPValue(data, 'FullPanoHeightPixels'),
-                croppedWidth: getXMPValue(data, 'CroppedAreaImageWidthPixels'),
-                croppedHeight: getXMPValue(data, 'CroppedAreaImageHeightPixels'),
-                croppedX: getXMPValue(data, 'CroppedAreaLeftPixels'),
-                croppedY: getXMPValue(data, 'CroppedAreaTopPixels'),
-                poseHeading: getXMPValue(data, 'PoseHeadingDegrees', false),
-                posePitch: getXMPValue(data, 'PosePitchDegrees', false),
-                poseRoll: getXMPValue(data, 'PoseRollDegrees', false),
-                initialHeading: getXMPValue(data, 'InitialViewHeadingDegrees', false),
-                initialPitch: getXMPValue(data, 'InitialViewPitchDegrees', false),
-                initialFov: getXMPValue(data, 'InitialHorizontalFOVDegrees', false),
-            };
+        if (a === -1) {
+            return null;
         }
 
-        return null;
+        const b = binary.indexOf('</x:xmpmeta>', a);
+        if (b === -1) {
+            return null;
+        }
+
+        const data = binary.substring(a, b);
+        if (!data.includes('GPano:')) {
+            return null;
+        }
+
+        return {
+            fullWidth: getXMPValue(data, 'FullPanoWidthPixels'),
+            fullHeight: getXMPValue(data, 'FullPanoHeightPixels'),
+            croppedWidth: getXMPValue(data, 'CroppedAreaImageWidthPixels'),
+            croppedHeight: getXMPValue(data, 'CroppedAreaImageHeightPixels'),
+            croppedX: getXMPValue(data, 'CroppedAreaLeftPixels'),
+            croppedY: getXMPValue(data, 'CroppedAreaTopPixels'),
+            poseHeading: getXMPValue(data, 'PoseHeadingDegrees', false),
+            posePitch: getXMPValue(data, 'PosePitchDegrees', false),
+            poseRoll: getXMPValue(data, 'PoseRollDegrees', false),
+            initialHeading: getXMPValue(data, 'InitialViewHeadingDegrees', false),
+            initialPitch: getXMPValue(data, 'InitialViewPitchDegrees', false),
+            initialFov: getXMPValue(data, 'InitialHorizontalFOVDegrees', false),
+        };
     }
 
     /**
@@ -249,138 +232,50 @@ export class EquirectangularAdapter extends AbstractAdapter<string, Texture, Pan
     /**
      * Creates the final texture from image and panorama data
      */
-    private createEquirectangularTexture(img: HTMLImageElement, panoData: PanoData): Texture {
-        // resize image / fill cropped parts with black
-        if (this.config.blur
-            || panoData.fullWidth > SYSTEM.maxTextureWidth
-            || panoData.croppedWidth !== panoData.fullWidth
-            || panoData.croppedHeight !== panoData.fullHeight
-        ) {
-            const ratio = Math.min(1, SYSTEM.maxCanvasWidth / panoData.fullWidth);
+    private createEquirectangularTexture(img: HTMLImageElement): Texture {
+        if (this.config.blur || img.width > SYSTEM.maxTextureWidth) {
+            const ratio = Math.min(1, SYSTEM.maxCanvasWidth / img.width);
 
-            const resizedPanoData = {
-                fullWidth: panoData.fullWidth * ratio,
-                fullHeight: panoData.fullHeight * ratio,
-                croppedWidth: panoData.croppedWidth * ratio,
-                croppedHeight: panoData.croppedHeight * ratio,
-                croppedX: panoData.croppedX * ratio,
-                croppedY: panoData.croppedY * ratio,
-            };
-
-            const buffer = document.createElement('canvas');
-            buffer.width = resizedPanoData.fullWidth;
-            buffer.height = resizedPanoData.fullHeight;
+            const buffer = new OffscreenCanvas(Math.floor(img.width * ratio), Math.floor(img.height * ratio));
 
             const ctx = buffer.getContext('2d');
 
-            if (this.config.backgroundColor) {
-                ctx.fillStyle = this.config.backgroundColor;
-                ctx.fillRect(0, 0, buffer.width, buffer.height);
-            }
-
             if (this.config.blur) {
-                const blurSize = buffer.width / 2048;
-                const margin = Math.ceil(blurSize * 2);
-
-                // copy edges before applying the blur
-                if (resizedPanoData.croppedWidth === buffer.width) {
-                    ctx.drawImage(
-                        img,
-                        0, 0,
-                        margin / ratio, img.height,
-                        0, resizedPanoData.croppedY,
-                        margin, resizedPanoData.croppedHeight
-                    );
-                    ctx.drawImage(
-                        img,
-                        img.width - margin / ratio, 0,
-                        margin / ratio, img.height,
-                        buffer.width - margin, resizedPanoData.croppedY,
-                        margin, resizedPanoData.croppedHeight
-                    );
-                }
-                if (resizedPanoData.croppedHeight === buffer.height) {
-                    ctx.drawImage(
-                        img,
-                        0, 0,
-                        1, 1,
-                        resizedPanoData.croppedX, 0,
-                        resizedPanoData.croppedWidth, margin
-                    );
-                    ctx.drawImage(
-                        img,
-                        0, img.height - 1,
-                        1, 1,
-                        resizedPanoData.croppedX, buffer.height - margin,
-                        resizedPanoData.croppedWidth, margin
-                    );
-                }
-
-                ctx.filter = `blur(${blurSize }px)`;
+                ctx.filter = `blur(${buffer.width / 2048}px)`;
             }
 
-            ctx.drawImage(
-                img,
-                resizedPanoData.croppedX,
-                resizedPanoData.croppedY,
-                resizedPanoData.croppedWidth,
-                resizedPanoData.croppedHeight
-            );
+            ctx.drawImage(img, 0, 0, buffer.width, buffer.height);
 
-            const t = createTexture(buffer);
-
-            if (this.config.interpolateBackground
-                && resizedPanoData.fullWidth <= 8096
-                && (
-                    panoData.croppedWidth !== panoData.fullWidth
-                    || panoData.croppedHeight !== panoData.fullHeight
-                )) {
-                this.interpolationWorker.postMessage({
-                    image: ctx.getImageData(
-                        resizedPanoData.croppedX,
-                        resizedPanoData.croppedY,
-                        resizedPanoData.croppedWidth,
-                        resizedPanoData.croppedHeight
-                    ),
-                    panoData: resizedPanoData,
-                });
-
-                this.interpolationWorker.onmessage = (e) => {
-                    ctx.putImageData(e.data, 0, 0);
-                    t.needsUpdate = true;
-                    this.viewer.needsUpdate();
-                };
-            }
-
-            return t;
+            return createTexture(buffer);
         }
 
         return createTexture(img);
     }
 
-    createMesh(): EquirectangularMesh {
+    createMesh(panoData: PanoData): EquirectangularMesh {
+        const hStart = (panoData.croppedX / panoData.fullWidth) * 2 * Math.PI;
+        const hLength = (panoData.croppedWidth / panoData.fullWidth) * 2 * Math.PI;
+        const vStart = (panoData.croppedY / panoData.fullHeight) * Math.PI;
+        const vLength = (panoData.croppedHeight / panoData.fullHeight) * Math.PI;
+
         // The middle of the panorama is placed at yaw=0
         const geometry = new SphereGeometry(
             SPHERE_RADIUS,
-            this.SPHERE_SEGMENTS,
-            this.SPHERE_HORIZONTAL_SEGMENTS,
-            -Math.PI / 2
+            Math.round((this.SPHERE_SEGMENTS / (2 * Math.PI)) * hLength),
+            Math.round((this.SPHERE_HORIZONTAL_SEGMENTS / Math.PI) * vLength),
+            -Math.PI / 2 + hStart,
+            hLength,
+            vStart,
+            vLength,
         ).scale(-1, 1, 1);
 
-        return new Mesh(geometry);
+        const material = new MeshBasicMaterial({ depthTest: false, depthWrite: false });
+
+        return new Mesh(geometry, material);
     }
 
-    setTexture(mesh: EquirectangularMesh, textureData: EquirectangularTexture, transition?: boolean) {
-        const material = new MeshBasicMaterial();
-
-        material.map = textureData.texture;
-
-        if (transition) {
-            material.depthTest = false;
-            material.depthWrite = false;
-        }
-
-        mesh.material = material;
+    setTexture(mesh: EquirectangularMesh, textureData: EquirectangularTextureData) {
+        mesh.material.map = textureData.texture;
     }
 
     setTextureOpacity(mesh: EquirectangularMesh, opacity: number) {
@@ -388,24 +283,12 @@ export class EquirectangularAdapter extends AbstractAdapter<string, Texture, Pan
         mesh.material.transparent = opacity < 1;
     }
 
-    disposeTexture(textureData: EquirectangularTexture) {
-        textureData.texture?.dispose();
+    disposeTexture({ texture }: EquirectangularTextureData) {
+        texture.dispose();
     }
 
-    private __defaultPanoData(img: HTMLImageElement): PanoData {
-        const fullWidth = Math.max(img.width, img.height * 2);
-        const fullHeight = Math.round(fullWidth / 2);
-        const croppedX = Math.round((fullWidth - img.width) / 2);
-        const croppedY = Math.round((fullHeight - img.height) / 2);
-
-        return {
-            isEquirectangular: true,
-            fullWidth: fullWidth,
-            fullHeight: fullHeight,
-            croppedWidth: img.width,
-            croppedHeight: img.height,
-            croppedX: croppedX,
-            croppedY: croppedY,
-        };
+    disposeMesh(mesh: EquirectangularMesh) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
     }
 }

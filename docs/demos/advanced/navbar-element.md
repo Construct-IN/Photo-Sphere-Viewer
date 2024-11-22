@@ -10,6 +10,8 @@ title: PSV Navbar element Demo
 ```
 
 ```js
+import { Viewer } from '@photo-sphere-viewer/core';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 // declare the custom element

@@ -21,7 +21,6 @@ import { Marker } from './Marker';
  * @internal
  */
 export class Marker3D extends Marker {
-
     override get threeElement(): Group {
         return this.element;
     }
@@ -151,12 +150,12 @@ export class Marker3D extends Marker {
 
             let positions: Position[];
             try {
-                positions = this.config.position.map((p) => this.viewer.dataHelper.cleanPosition(p));
+                positions = this.config.position.map(p => this.viewer.dataHelper.cleanPosition(p));
             } catch (e) {
                 throw new PSVError(`invalid marker ${this.id} position`, e);
             }
 
-            const positions3D = positions.map((p) => this.viewer.dataHelper.sphericalCoordsToVector3(p));
+            const positions3D = positions.map(p => this.viewer.dataHelper.sphericalCoordsToVector3(p));
 
             const centroid = getPolygonCenter(positions.map(({ yaw, pitch }) => [yaw, pitch]));
             this.state.position = { yaw: centroid[0], pitch: centroid[1] };
@@ -276,19 +275,19 @@ export class Marker3D extends Marker {
 
         const w1 = utils.greatArcDistance(
             [positions[0].yaw, positions[0].pitch],
-            [positions[1].yaw, positions[1].pitch]
+            [positions[1].yaw, positions[1].pitch],
         );
         const w2 = utils.greatArcDistance(
             [positions[3].yaw, positions[3].pitch],
-            [positions[2].yaw, positions[2].pitch]
+            [positions[2].yaw, positions[2].pitch],
         );
         const h1 = utils.greatArcDistance(
             [positions[1].yaw, positions[1].pitch],
-            [positions[2].yaw, positions[2].pitch]
+            [positions[2].yaw, positions[2].pitch],
         );
         const h2 = utils.greatArcDistance(
             [positions[0].yaw, positions[0].pitch],
-            [positions[3].yaw, positions[3].pitch]
+            [positions[3].yaw, positions[3].pitch],
         );
 
         const layerRatio = (w1 + w2) / (h1 + h2);

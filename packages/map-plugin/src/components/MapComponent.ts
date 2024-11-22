@@ -80,7 +80,7 @@ export class MapComponent extends AbstractComponent {
 
     constructor(
         viewer: Viewer,
-        private plugin: MapPlugin
+        private plugin: MapPlugin,
     ) {
         super(viewer, {
             className: `psv-map ${CONSTANTS.CAPTURE_EVENTS_CLASS}`,
@@ -98,6 +98,7 @@ export class MapComponent extends AbstractComponent {
         window.addEventListener('touchend', this);
         canvasContainer.addEventListener('wheel', this);
         viewer.addEventListener(events.KeypressEvent.type, this);
+        viewer.addEventListener(events.ConfigChangedEvent.type, this);
 
         // map canvas
         this.canvas = document.createElement('canvas');
@@ -173,7 +174,7 @@ export class MapComponent extends AbstractComponent {
     }
 
     handleEvent(e: Event) {
-        if (utils.getClosest(e.target as HTMLElement, `.${CONSTANTS.CAPTURE_EVENTS_CLASS}:not(.psv-map)`)) {
+        if (utils.getMatchingTarget(e, `.${CONSTANTS.CAPTURE_EVENTS_CLASS}:not(.psv-map)`)) {
             return;
         }
         switch (e.type) {
@@ -181,6 +182,14 @@ export class MapComponent extends AbstractComponent {
                 if (this.state.maximized) {
                     this.__onKeyPress((e as events.KeypressEvent).key);
                     e.preventDefault();
+                }
+                break;
+            case events.ConfigChangedEvent.type:
+                if ((e as events.ConfigChangedEvent).containsOptions('lang')) {
+                    this.resetButton?.update();
+                    this.closeButton?.update();
+                    this.compassButton?.update();
+                    this.maximizeButton?.update();
                 }
                 break;
             case 'mousedown': {
@@ -213,7 +222,7 @@ export class MapComponent extends AbstractComponent {
                 if (this.state.mousedown) {
                     this.__move(event.clientX, event.clientY);
                     e.stopPropagation();
-                } else if (e.target === this.canvas) {
+                } else if (e.composedPath().includes(this.canvas)) {
                     this.__handleHotspots(event.clientX, event.clientY);
                 }
                 break;
@@ -246,7 +255,7 @@ export class MapComponent extends AbstractComponent {
                     this.state.mousedown = false;
                     e.stopPropagation();
                 }
-                if (e.target === this.canvas) {
+                if (e.composedPath().includes(this.canvas)) {
                     this.__clickHotspot(mouse.clientX, mouse.clientY);
                 }
                 break;
@@ -300,7 +309,8 @@ export class MapComponent extends AbstractComponent {
         this.container.style.width = this.config.width;
         this.container.style.height = this.config.height;
 
-        this.overlay.innerHTML = this.config.overlayImage === null ? ''
+        this.overlay.innerHTML = this.config.overlayImage === null
+            ? ''
             : getImageHtml(this.config.overlayImage ?? (this.config.shape === 'square' ? overlaySquare : overlayRound));
 
         this.resetButton?.applyConfig();
@@ -515,14 +525,13 @@ export class MapComponent extends AbstractComponent {
         context.rotate(-yawAndRotation);
         context.scale(zoom, zoom);
         canvasShadow(context, 0, 0, MAP_SHADOW_BLUR);
-        // prettier-ignore
         drawImageHighDpi(
             context,
             mapImage,
             -center.x - offset.x,
             -center.y - offset.y,
             mapW,
-            mapH
+            mapH,
         );
         context.restore();
 
@@ -646,7 +655,7 @@ export class MapComponent extends AbstractComponent {
                 y: this.state.mouseY - clientY,
             },
             this.config.static ? 0 : yaw + this.config.rotation,
-            zoom
+            zoom,
         );
 
         this.state.offset.x += move.x;
@@ -732,7 +741,7 @@ export class MapComponent extends AbstractComponent {
                 this.viewer.getPlugin<MarkersPlugin>('markers').gotoMarker(markerId);
             }
 
-            if (this.maximized) {
+            if (this.maximized && this.config.minimizeOnHotspotClick) {
                 this.toggleMaximized();
             }
         }
@@ -809,7 +818,6 @@ export class MapComponent extends AbstractComponent {
         let y = 0;
         let z = 0;
 
-        // prettier-ignore
         switch (key) {
             case CONSTANTS.KEY_CODES.ArrowUp: y = 1; break;
             case CONSTANTS.KEY_CODES.ArrowDown: y = -1; break;

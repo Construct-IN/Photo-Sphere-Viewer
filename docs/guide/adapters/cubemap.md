@@ -9,8 +9,10 @@ This adapter is available in the [@photo-sphere-viewer/cubemap-adapter](https://
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.CubemapAdapter,
+import {  CubemapAdapter } from '@photo-sphere-viewer/cubemap-adapter';
+
+const viewer = new Viewer({
+    adapter: CubemapAdapter,
     panorama: {
         left: 'path/to/left.jpg',
         front: 'path/to/front.jpg',
@@ -30,29 +32,9 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Cubemap Demo
 packages:
     - name: cubemap-adapter
-      imports: CubemapAdapter
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: CubemapAdapter,
-    panorama: {
-        left: baseUrl + 'cubemap/px.jpg',
-        front: baseUrl + 'cubemap/nz.jpg',
-        right: baseUrl + 'cubemap/nx.jpg',
-        back: baseUrl + 'cubemap/pz.jpg',
-        top: baseUrl + 'cubemap/py.jpg',
-        bottom: baseUrl + 'cubemap/ny.jpg',
-    },
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-});
-```
+<<< ./demos-src/cubemap.js
 
 :::
 
@@ -98,11 +80,15 @@ panorama: {
 }
 ```
 
+::: tip Partial cubemap
+It is possible to skip the loading of one or more faces by providing a `null` URL.
+:::
+
 ### Stripe
 
 All faces are in a single file arranged in an horizontal stripe. The default stripe order is `left, front, right, back, top, bottom` but it can be changed with the `order` field.
 
-![](../../images/cubemap-stripe.png)
+![](/images/cubemap-stripe.png)
 
 ```js
 panorama: {
@@ -119,7 +105,7 @@ panorama: {
 
 All faces are in a single file arranged in an horizontal "T" unfolded cube.
 
-![](../../images/cubemap-net.png)
+![](/images/cubemap-net.png)
 
 ```js
 panorama: {

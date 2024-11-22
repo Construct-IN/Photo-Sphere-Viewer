@@ -1,3 +1,5 @@
+import { MathUtils } from 'three';
+
 /**
  * Direction of a {@link Slider}
  */
@@ -57,7 +59,7 @@ export class Slider {
         /** direction of the slider */
         private readonly direction: SliderDirection,
         /** callback when the user interacts with the slider */
-        private readonly listener: (data: SliderUpdateData) => void
+        private readonly listener: (data: SliderUpdateData) => void,
     ) {
         this.container.addEventListener('click', this);
         this.container.addEventListener('mousedown', this);
@@ -79,7 +81,6 @@ export class Slider {
      * @internal
      */
     handleEvent(e: Event) {
-        // prettier-ignore
         switch (e.type) {
             case 'click': e.stopPropagation(); break;
             case 'mousedown': this.__onMouseDown(e as MouseEvent); break;
@@ -150,10 +151,13 @@ export class Slider {
 
     private __update(clientX: number, clientY: number, moving: boolean) {
         const boundingClientRect = this.container.getBoundingClientRect();
-        const cursor = this.isVertical ? clientY : clientX;
-        const pos = boundingClientRect[this.isVertical ? 'bottom' : 'left'];
-        const size = boundingClientRect[this.isVertical ? 'height' : 'width'];
-        const val = Math.abs((pos - cursor) / size);
+
+        let val: number;
+        if (this.isVertical) {
+            val = MathUtils.clamp((boundingClientRect.bottom - clientY) / boundingClientRect.height, 0, 1);
+        } else {
+            val = MathUtils.clamp((clientX - boundingClientRect.left) / boundingClientRect.width, 0, 1);
+        }
 
         this.listener({
             value: val,

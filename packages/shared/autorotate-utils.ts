@@ -9,7 +9,7 @@ export function debugCurve(markers: MarkersPlugin, curve: Array<[number, number]
     debugMarkers.forEach((marker) => {
         try {
             markers.removeMarker(marker);
-        } catch (e) {
+        } catch {
             // noop
         }
     });

@@ -188,6 +188,11 @@ export type MapPluginConfig = {
     hotspots?: MapHotspot[];
 
     /**
+     * Always minimize the map when an hotspot/marker is clicked
+     */
+    minimizeOnHotspotClick?: boolean;
+
+    /**
      * Configuration of map buttons
      */
     buttons?: {
@@ -210,7 +215,7 @@ export type ParsedMapPluginConfig = Omit<MapPluginConfig, 'position' | 'rotation
 export type UpdatableMapPluginConfig = Omit<
     MapPluginConfig,
     | 'imageUrl'
-    | 'visibleOnLoad' 
-    | 'defaultZoom' 
+    | 'visibleOnLoad'
+    | 'defaultZoom'
     | 'buttons'
 >;

@@ -6,7 +6,6 @@ export class MapResetButton extends AbstractMapButton {
     constructor(map: MapComponent) {
         super(map, ButtonPosition.HORIZONTAL);
 
-        this.container.title = this.viewer.config.lang['mapReset'];
         this.container.innerHTML = reset;
         this.container.querySelector('svg').style.width = '80%';
 
@@ -14,5 +13,9 @@ export class MapResetButton extends AbstractMapButton {
             map.reset();
             e.stopPropagation();
         });
+    }
+
+    override update() {
+        this.container.title = this.viewer.config.lang['mapReset'];
     }
 }

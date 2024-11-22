@@ -56,7 +56,7 @@ export abstract class Marker {
     constructor(
         protected viewer: Viewer,
         protected plugin: MarkersPlugin,
-        config: MarkerConfig
+        config: MarkerConfig,
     ) {
         if (!config.id) {
             throw new PSVError('missing marker id');
@@ -214,7 +214,7 @@ export abstract class Marker {
      * Display the tooltip of this marker
      * @internal
      */
-    showTooltip(clientX?: number, clientY?: number) {
+    showTooltip(clientX?: number, clientY?: number, forceUpdate = false) {
         if (this.state.visible && this.config.tooltip?.content && this.state.position2D) {
             const config: TooltipConfig = {
                 ...this.config.tooltip,
@@ -230,7 +230,7 @@ export abstract class Marker {
             if (this.isPoly() || this.is3d() || this.isCss3d()) {
                 if (clientX || clientY) {
                     const viewerPos = utils.getPosition(this.viewer.container);
-                    config.top = clientY - viewerPos.y;
+                    config.top = clientY - viewerPos.y + 10;
                     config.left = clientX - viewerPos.x;
                     config.box = {
                         // separate the tooltip from the cursor
@@ -259,7 +259,11 @@ export abstract class Marker {
             }
 
             if (this.tooltip) {
-                this.tooltip.move(config);
+                if (forceUpdate) {
+                    this.tooltip.update(this.config.tooltip.content, config);
+                } else {
+                    this.tooltip.move(config);
+                }
             } else {
                 this.tooltip = this.viewer.createTooltip(config);
             }

@@ -1,7 +1,7 @@
 import type { Viewer } from '@photo-sphere-viewer/core';
-import { PSVError, utils } from '@photo-sphere-viewer/core';
+import { PSVError } from '@photo-sphere-viewer/core';
 import { VirtualTourPluginConfig } from '../model';
-import { VirtualTourPlugin } from '../VirtualTourPlugin';
+import type { VirtualTourPlugin } from '../VirtualTourPlugin';
 import { AbstractDatasource } from './AbstractDataSource';
 
 export class ServerSideDatasource extends AbstractDatasource {
@@ -17,28 +17,25 @@ export class ServerSideDatasource extends AbstractDatasource {
         this.nodeResolver = plugin.config.getNode;
     }
 
-    loadNode(nodeId: string) {
+    async loadNode(nodeId: string) {
         if (this.nodes[nodeId]) {
-            return Promise.resolve(this.nodes[nodeId]);
+            return this.nodes[nodeId];
         } else {
-            return Promise.resolve(this.nodeResolver(nodeId)).then((node) => {
-                this.checkNode(node);
-                if (!node.links) {
-                    utils.logWarn(`Node ${node.id} has no links`);
-                    node.links = [];
-                }
+            const node = await this.nodeResolver(nodeId);
 
-                node.links.forEach((link) => {
-                    if (this.nodes[link.nodeId]) {
-                        link.gps = link.gps || this.nodes[link.nodeId].gps;
-                    }
+            this.checkNode(node);
 
-                    this.checkLink(node, link);
-                });
-
-                this.nodes[nodeId] = node;
-                return node;
+            node.links.forEach((link) => {
+                this.checkLink(node, link);
             });
+
+            this.nodes[nodeId] = node;
+
+            return node;
         }
+    }
+
+    clearCache(): void {
+        this.nodes = {};
     }
 }

@@ -10,6 +10,8 @@ title: PSV Double click zoom Demo
 ```
 
 ```js
+import { Viewer } from '@photo-sphere-viewer/core';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const viewer = new Viewer({

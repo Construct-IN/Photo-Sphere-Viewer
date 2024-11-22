@@ -1,7 +1,5 @@
 # Events
 
-[[toc]]
-
 ## Presentation
 
 Photo Sphere Viewer objects (`Viewer` and plugins) all implement the [EventTarget API](https://developer.mozilla.org/docs/Web/API/EventTarget) to dispatch events. It also implements a custom TypeScript interface which allows events to be strongly typed.
@@ -25,7 +23,7 @@ viewer.addEventListener(events.PositionUpdateEvent.type, (e) => {
 viewer.addEventListener('position-updated', ({ position }) => ());
 ```
 
-The full list of events is available in the <ApiLink page="modules/Core.events.html"/>.
+The full list of events is available in the [API Documentation](/api/modules/Core.events.html){target=_blank}.
 
 ## Main events
 

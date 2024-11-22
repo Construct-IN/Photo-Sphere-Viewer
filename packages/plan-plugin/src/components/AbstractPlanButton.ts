@@ -31,13 +31,12 @@ function getButtonPosition(mapPosition: [string, string], direction: ButtonPosit
 export abstract class AbstractPlanButton extends AbstractComponent {
     constructor(
         protected plan: PlanComponent,
-        private position: ButtonPosition
+        private position: ButtonPosition,
     ) {
         super(plan, {});
     }
 
     applyConfig() {
-        // prettier-ignore
         this.container.className = `psv-plan__button psv-plan__button--${getButtonPosition(this.plan.config.position, this.position).join('-')}`;
         this.update();
     }

@@ -4,5 +4,5 @@
   "entryPoints": ["src/index.ts"],
   "entryPointStrategy": "resolve",
   "name": "GyroscopePlugin",
-  "readme": "./.typedoc/README.md"
+  "readme": "./.tmp/typedoc/README.md"
 }

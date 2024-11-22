@@ -9,7 +9,6 @@ import { AbstractStandardMarker } from './AbstractStandardMarker';
  * @internal
  */
 export class MarkerSvg extends AbstractStandardMarker {
-
     get svgElement(): SVGElement {
         return this.domElement.firstElementChild as any;
     }

@@ -16,7 +16,7 @@ export class NodeChangedEvent extends TypedEvent<VirtualTourPlugin> {
             fromNode: VirtualTourNode;
             fromLink: VirtualTourLink;
             fromLinkPosition: Position;
-        }
+        },
     ) {
         super(NodeChangedEvent.type);
     }
@@ -32,7 +32,7 @@ export class EnterArrowEvent extends TypedEvent<VirtualTourPlugin> {
     /** @internal */
     constructor(
         public readonly link: VirtualTourLink,
-        public readonly node: VirtualTourNode
+        public readonly node: VirtualTourNode,
     ) {
         super(EnterArrowEvent.type);
     }
@@ -48,13 +48,13 @@ export class LeaveArrowEvent extends TypedEvent<VirtualTourPlugin> {
     /** @internal */
     constructor(
         public readonly link: VirtualTourLink,
-        public readonly node: VirtualTourNode
+        public readonly node: VirtualTourNode,
     ) {
         super(LeaveArrowEvent.type);
     }
 }
 
-export type VirtualTourEvents = 
+export type VirtualTourEvents =
     | NodeChangedEvent
     | EnterArrowEvent
     | LeaveArrowEvent;

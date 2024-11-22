@@ -11,7 +11,6 @@ import { AbstractDomMarker } from './AbstractDomMarker';
  * @internal
  */
 export class MarkerPolygon extends AbstractDomMarker {
-
     private positions3D: Vector3[][];
 
     constructor(viewer: Viewer, plugin: MarkersPlugin, config: MarkerConfig) {
@@ -60,11 +59,11 @@ export class MarkerPolygon extends AbstractDomMarker {
             const position = this.viewer.dataHelper.sphericalCoordsToViewerCoords(this.state.position);
 
             const points = positions
-                .filter((innerPos) => innerPos.length > 0)
+                .filter(innerPos => innerPos.length > 0)
                 .map((innerPos) => {
                     let innerPoints = 'M';
                     innerPoints += innerPos
-                        .map((pos) => `${pos.x - position.x},${pos.y - position.y}`)
+                        .map(pos => `${pos.x - position.x},${pos.y - position.y}`)
                         .join('L');
                     if (this.isPolygon) {
                         innerPoints += 'Z';
@@ -114,7 +113,7 @@ export class MarkerPolygon extends AbstractDomMarker {
                     actualPoly.splice(i, 2, [actualPoly[i], actualPoly[i + 1]]);
                 }
             }
-    
+
             // make nested array for holes
             if (!Array.isArray(actualPoly[0][0])) {
                 actualPoly = [actualPoly];
@@ -124,8 +123,8 @@ export class MarkerPolygon extends AbstractDomMarker {
                 throw new PSVError(`polylines cannot have holes`);
             }
 
-            // convert texture coordinates to spherical coordinates
             if (this.isPixels) {
+                // convert texture coordinates to spherical coordinates
                 this.definition = (actualPoly as Array<Array<[number, number]>>).map((coords) => {
                     return coords.map((coord) => {
                         const sphericalCoords = this.viewer.dataHelper.textureCoordsToSphericalCoords({
@@ -135,9 +134,8 @@ export class MarkerPolygon extends AbstractDomMarker {
                         return [sphericalCoords.yaw, sphericalCoords.pitch];
                     });
                 });
-            }
-            // clean angles
-            else {
+            } else {
+                // clean angles
                 this.definition = (actualPoly as Array<Array<[number, number]>> | Array<Array<[string, string]>>).map((coords) => {
                     return coords.map((coord) => {
                         return [utils.parseAngle(coord[0]), utils.parseAngle(coord[1], true)];
@@ -162,7 +160,7 @@ export class MarkerPolygon extends AbstractDomMarker {
     }
 
     private __getAllPolyPositions(): Point[][] {
-        return this.positions3D.map(positions => {
+        return this.positions3D.map((positions) => {
             return this.__getPolyPositions(positions);
         });
     }
@@ -213,7 +211,7 @@ export class MarkerPolygon extends AbstractDomMarker {
 
         // translate vectors to screen pos
         return positions3D
-            .filter((pos) => pos.visible)
-            .map((pos) => this.viewer.dataHelper.vector3ToViewerCoords(pos.vector));
+            .filter(pos => pos.visible)
+            .map(pos => this.viewer.dataHelper.vector3ToViewerCoords(pos.vector));
     }
 }

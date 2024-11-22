@@ -85,7 +85,7 @@ export function registerButton(button: ButtonConstructor, defaultPosition?: stri
     MoveRightButton,
     MoveUpButton,
     MoveDownButton,
-].forEach((btn) => registerButton(btn));
+].forEach(btn => registerButton(btn));
 
 /**
  * Navigation bar component
@@ -129,7 +129,7 @@ export class Navbar extends AbstractComponent {
      * Change the buttons visible on the navbar
      */
     setButtons(buttons: ParsedViewerConfig['navbar']) {
-        this.children.slice().forEach((item) => item.destroy());
+        this.children.slice().forEach(item => item.destroy());
         this.children.length = 0;
 
         // force description button if caption is present (used on narrow screens)
@@ -223,12 +223,12 @@ export class Navbar extends AbstractComponent {
         }
 
         if (availableWidth < totalWidth && collapsableButtons.length > 0) {
-            collapsableButtons.forEach((item) => item.collapse());
+            collapsableButtons.forEach(item => item.collapse());
             this.collapsed = collapsableButtons;
 
             this.getButton(MenuButton.id).show(false);
         } else if (availableWidth >= totalWidth && this.collapsed.length > 0) {
-            this.collapsed.forEach((item) => item.uncollapse());
+            this.collapsed.forEach(item => item.uncollapse());
             this.collapsed = [];
 
             this.getButton(MenuButton.id).hide(false);

@@ -109,8 +109,8 @@ export class Tooltip extends AbstractComponent {
         this.container.addEventListener('transitionend', this);
 
         // allows to interact with static tooltips
-        this.container.addEventListener('touchdown', (e) => e.stopPropagation());
-        this.container.addEventListener('mousedown', (e) => e.stopPropagation());
+        this.container.addEventListener('touchdown', e => e.stopPropagation());
+        this.container.addEventListener('mousedown', e => e.stopPropagation());
 
         this.container.style.top = '-1000px';
         this.container.style.left = '-1000px';
@@ -402,7 +402,7 @@ export class Tooltip extends AbstractComponent {
                         new Promise((resolve) => {
                             image.onload = resolve;
                             image.onerror = resolve;
-                        })
+                        }),
                     );
                 }
             });

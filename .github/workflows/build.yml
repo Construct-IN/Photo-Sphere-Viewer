@@ -9,102 +9,133 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'examples/**'
   workflow_dispatch: {}
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: read
+
+    outputs:
+      build: ${{ steps.filter.outputs.build }}
+      src: ${{ steps.filter.outputs.src }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      docs: ${{ steps.filter.outputs.docs }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            build:
+              - '*'
+              - 'build/**'
+            src:
+              - 'packages/**'
+            e2e:
+              - 'cypress/**'
+            docs:
+              - 'docs/**'
+
   build:
+    needs: changes
+
+    if: ${{ needs.changes.outputs.build == 'true' || needs.changes.outputs.src == 'true' }}
+
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: data
-        id: data
-        run: |
-          echo "YARN_CACHE_DIR=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: yarn cache
-        uses: actions/cache@v4
-        if: github.ref_name == 'main'
-        with:
-          key: yarn-${{ hashFiles('yarn.lock') }}
-          path: ${{ steps.data.outputs.YARN_CACHE_DIR }}
-
-      - name: yarn cache ro
-        uses: actions/cache/restore@v4
-        if: github.ref_name != 'main'
-        with:
-          key: yarn-${{ hashFiles('yarn.lock') }}
-          path: ${{ steps.data.outputs.YARN_CACHE_DIR }}
-
-      - name: turbo cache
-        uses: actions/cache@v4
-        if: github.ref_name == 'main'
-        with:
-          path: .turbo
-          key: turbo-${{ github.sha }}
-          restore-keys: |
-            turbo-
-
-      - name: turbo cache ro
-        uses: actions/cache/restore@v4
-        if: github.ref_name != 'main'
-        with:
-          path: .turbo
-          key: turbo-${{ github.sha }}
-          restore-keys: |
-            turbo-
+      - name: setup
+        uses: ./.github/workflows/shared/setup
 
       - name: build
-        run: |
-          yarn install
-          yarn ci:build
+        run: yarn ci:build
 
-  build-doc:
+      - name: test summary
+        uses: phoenix-actions/test-reporting@v15
+        if: ${{ !cancelled() }}
+        with:
+          name: build
+          output-to: step-summary
+          path: 'packages/*/reports/mocha.json,build/reports/mocha.json'
+          reporter: mocha-json
+
+  e2e:
+    needs: [changes, build]
+
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !startsWith(github.head_ref, 'dependabot') && (needs.changes.outputs.build == 'true' || needs.changes.outputs.e2e == 'true') }}
+
     runs-on: ubuntu-latest
-    needs: build
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: setup
+        uses: ./.github/workflows/shared/setup
         with:
-          node-version: '20'
+          cache-readonly: 'true'
+          turbo-cache: 'false'
 
-      - name: data
-        id: data
-        run: |
-          echo "YARN_CACHE_DIR=$(yarn cache dir)" >> $GITHUB_OUTPUT
+      - name: e2e
+        run: yarn ci:e2e
 
-      - name: yarn cache ro
-        uses: actions/cache/restore@v4
+      - name: test summary
+        uses: phoenix-actions/test-reporting@v15
+        if: ${{ !cancelled() }}
         with:
-          key: yarn-${{ hashFiles('yarn.lock') }}
-          path: ${{ steps.data.outputs.YARN_CACHE_DIR }}
+          name: e2e
+          output-to: step-summary
+          path: 'cypress/reports/html/.jsons/*.json'
+          reporter: mochawesome-json
 
-      - name: turbo cache
-        uses: actions/cache@v4
-        if: github.ref_name == 'main'
-        with:
-          path: .turbo
-          key: turbo_doc-${{ github.sha }}
-          restore-keys: |
-            turbo_doc-
+      - name: coverage summary
+        run: node ./build/generate-coverage-summary.mjs >> $GITHUB_STEP_SUMMARY
 
-      - name: turbo cache ro
-        uses: actions/cache/restore@v4
-        if: github.ref_name != 'main'
+      - name: report artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
-          path: .turbo
-          key: turbo_doc-${{ github.sha }}
-          restore-keys: |
-            turbo_doc-
+          name: e2e-report-${{ env.REF_NAME_SLUG }}-${{ env.SHORT_SHA }}
+          path: |
+            cypress/reports/html
+            !cypress/reports/html/.jsons
+
+      - name: deploy report
+        uses: ./.github/workflows/shared/deploy-netlify
+        if: ${{ !cancelled() && github.repository == 'mistic100/Photo-Sphere-Viewer' && github.ref_name == 'main' }}
+        with:
+          env: cypress
+          root-folder: cypress/reports/html
+          excludes: .jsons
+          auth-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          site-id: ${{ secrets.NETLIFY_REPORTS_SITE_ID }}
+
+  docs:
+    needs: [changes, build]
+
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !startsWith(github.head_ref, 'dependabot') && (needs.changes.outputs.build == 'true' || needs.changes.outputs.docs == 'true') }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup
+        uses: ./.github/workflows/shared/setup
+        with:
+          cache-readonly: 'true'
+          turbo-cache: 'false'
 
       - name: build
-        run: |
-          yarn install
-          yarn ci:build-doc
+        run: yarn doc:build

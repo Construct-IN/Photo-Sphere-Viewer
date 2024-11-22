@@ -74,6 +74,8 @@
                 // mousewheelCtrlKey: true,
                 // moveSpeed: 2,
                 // zoomSpeed: 2,
+                // moveInertia: false,
+                keyboard: 'always',
                 navbar: [
                     'zoom',
                     'move',
@@ -114,8 +116,8 @@
                 keyboard: 'always',
                 keyboardActions: {
                     ...DEFAULTS.keyboardActions,
-                    f: (viewer) => viewer.toggleFullscreen(),
-                    h: (viewer) => {
+                    f: (viewer, e) => viewer.toggleFullscreen(),
+                    h: (viewer, e) => {
                         if (viewer.panel.isVisible('help')) {
                             viewer.panel.hide();
                         } else {
@@ -126,6 +128,10 @@
                         }
                     },
                 },
+            });
+
+            viewer.addEventListener('click', ({ data }) => {
+                console.log('click', data);
             });
 
             window.viewer = viewer;

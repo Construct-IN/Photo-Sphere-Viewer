@@ -1,7 +1,10 @@
+import type { PanoData, PanoDataProvider } from '@photo-sphere-viewer/core';
+
 export type Resolution = {
     id: string;
     label: string;
     panorama: any;
+    panoData?: PanoData | PanoDataProvider;
 };
 
 export type ResolutionPluginConfig = {

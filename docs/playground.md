@@ -1,6 +1,13 @@
+---
+footer: false
+aside: false
+---
+
 # Playground
 
-This page allows to test (almost) all options of Photo Sphere Viewer with your own panorama (equirectangular only). You can also add markers interractively and export them.
+<script setup>
+import Playground from './.vitepress/components/Playground.vue';
+</script>
 
 <ClientOnly>
   <Playground/>

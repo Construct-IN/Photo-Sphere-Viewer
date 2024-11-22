@@ -85,7 +85,7 @@ function getWebGLCtx(): WebGLRenderingContext | null {
     try {
         const canvas = document.createElement('canvas');
         return canvas.getContext('webgl2');
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -153,7 +153,7 @@ function getMaxCanvasWidth(maxWidth: number): number {
             if (ctx.getImageData(0, 0, 1, 1).data[0] > 0) {
                 pass = true;
             }
-        } catch (e) {
+        } catch {
             // continue
         }
 

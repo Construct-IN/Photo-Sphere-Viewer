@@ -9,8 +9,6 @@ Adds a button to choose between multiple resolutions of the panorama. **Requires
 This plugin is available in the [@photo-sphere-viewer/resolution-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/resolution-plugin) package.
 :::
 
-[[toc]]
-
 ::: warning
 ResolutionPlugin is not compatible with GalleryPlugin.
 :::
@@ -20,10 +18,13 @@ ResolutionPlugin is not compatible with GalleryPlugin.
 Once enabled the plugin will add a new setting the user can use to change the resolution of the panorama.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+import { SettingsPlugin } from '@photo-sphere-viewer/settings-plugin';
+import { ResolutionPlugin } from '@photo-sphere-viewer/resolution-plugin';
+
+const viewer = new Viewer({
     plugins: [
-        PhotoSphereViewer.SettingsPlugin,
-        [PhotoSphereViewer.ResolutionPlugin, {
+        SettingsPlugin,
+        [ResolutionPlugin, {
             defaultResolution: 'SD',
             resolutions: [
                 {
@@ -52,42 +53,11 @@ The following example provides two resolutions for the panorama, "small" is load
 title: PSV Resolution Demo
 packages:
     - name: settings-plugin
-      imports: SettingsPlugin
       style: true
     - name: resolution-plugin
-      imports: ResolutionPlugin
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-
-    plugins: [
-        SettingsPlugin,
-        [ResolutionPlugin, {
-            defaultResolution: 'SD',
-            resolutions: [
-                {
-                    id: 'SD',
-                    label: 'Small',
-                    panorama: baseUrl + 'sphere-small.jpg',
-                },
-                {
-                    id: 'HD',
-                    label: 'Normal',
-                    panorama: baseUrl + 'sphere.jpg',
-                },
-            ],
-        }],
-    ],
-});
-```
+<<< ./demos-src/resolution.js
 
 :::
 
@@ -98,7 +68,7 @@ const viewer = new Viewer({
 -   type: `object[]`
 -   updatable: no, use `setResolutions()` method
 
-List of available resolutions. Each resolution consists of an object with the properties `id`, `label` and `panorama`.
+List of available resolutions. Each resolution consists of an object with the properties `id`, `label`, `panorama` and `panoData` (optional).
 
 #### `defaultResolution`
 

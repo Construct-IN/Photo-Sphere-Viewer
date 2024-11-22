@@ -17,7 +17,7 @@ export class MarkerVisibilityEvent extends MarkersPluginEvent {
     /** @internal */
     constructor(
         public readonly marker: Marker,
-        public readonly visible: boolean
+        public readonly visible: boolean,
     ) {
         super(MarkerVisibilityEvent.type);
     }
@@ -73,7 +73,7 @@ export class SelectMarkerEvent extends MarkersPluginEvent {
     constructor(
         public readonly marker: Marker,
         public readonly doubleClick: boolean,
-        public readonly rightClick: boolean
+        public readonly rightClick: boolean,
     ) {
         super(SelectMarkerEvent.type);
     }
@@ -154,7 +154,7 @@ export class RenderMarkersListEvent extends MarkersPluginEvent {
     /** @internal */
     constructor(
         /** the list of markers to display, can be modified */
-        public markers: Marker[]
+        public markers: Marker[],
     ) {
         super(RenderMarkersListEvent.type);
     }

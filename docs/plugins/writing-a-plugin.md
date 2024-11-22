@@ -1,7 +1,5 @@
 # Writing a plugin
 
-[[toc]]
-
 ::: tip Full featured example
 You can find a complete example of plugin implementation in the [examples](https://github.com/mistic100/Photo-Sphere-Viewer/tree/main/examples/custom-plugin) folder of the project.
 :::
@@ -18,7 +16,7 @@ The recommended way to create your own plugin is as an ES6 class extending `Abst
 -   It **must** implement the `destroy` method which is used to cleanup the plugin when the viewer is unloaded.
 -   The constructor **can** take an `config` object as second parameter.
 
-In the plugin you have access to `this.viewer` which is the instance of the viewer, check the <ApiLink page="classes/Core.Viewer.html"/> for more information.
+In the plugin you have access to `this.viewer` which is the instance of the viewer, check the [API Documentation](/api/classes/Core.Viewer.html){target=_blank} for more information.
 
 Your plugin is also an `EventTarget` with `addEventListener`, `removeEventListener` and `dispatchEvent` methods.
 
@@ -133,7 +131,7 @@ Your plugin may need to add a new button in the navbar. This section will descri
 
 ### Creating a button
 
-Photo Sphere Viewer buttons **must** extend `AbstractButton`, check the <ApiLink page="classes/Core.AbstractButton.html"/> for more information.
+Photo Sphere Viewer buttons **must** extend `AbstractButton`, check the [API Documentation](/api/classes/Core.AbstractButton.html){target=_blank} for more information.
 
 **Requirements:**
 
@@ -213,50 +211,6 @@ import iconContent from './icon.svg';
 ::: tip Icon color
 To be correctly displayed in the navbar, the icon must use `fill="currentColor"` and/or `stroke="currentColor"`.
 :::
-
-## Viewer settings
-
-A plugin can expose one or more settings to the viewer by using the Settings plugin.
-
-This is done by requiring the settings plugin and calling the `addSetting` method. Consult the [Settings plugin](./settings.md) page for more information.
-
-```js
-export default class CustomPlugin extends AbstractPlugin {
-    constructor(viewer) {
-        super(viewer);
-
-        /**
-         * @type {SettingsPlugin}
-         */
-        this.settings = null;
-    }
-
-    init() {
-        this.settings = this.viewer.getPlugin('settings');
-
-        // the user may choose to not import the Settings plugin
-        // you may choose to make it a requirement by throwing an error...
-        if (this.settings) {
-            this.settings.addSetting({
-                id: 'custom-setting',
-                type: 'toggle',
-                label: 'Custom setting',
-                active: () => this.isActive(),
-                toggle: () => this.toggle(),
-            });
-        }
-    }
-
-    destroy() {
-        if (this.settings) {
-            this.settings.removeSetting('custom-setting');
-            delete this.settings;
-        }
-
-        super.destroy();
-    }
-}
-```
 
 ## Naming and publishing
 

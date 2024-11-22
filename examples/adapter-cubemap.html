@@ -58,7 +58,7 @@
                             baseUrl + 'cubemap-test/5.png',
                             baseUrl + 'cubemap-test/6.png',
                         ],
-                        // flipTopBottom: true,
+                        flipTopBottom: true,
                     },
                     caption: 'Test cubemap',
                 },
@@ -108,6 +108,10 @@
                     'caption',
                     'fullscreen',
                 ],
+            });
+
+            viewer.addEventListener('click', ({ data }) => {
+                console.log('click', data);
             });
 
             window.viewer = viewer;

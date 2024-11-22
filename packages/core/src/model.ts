@@ -93,14 +93,22 @@ export type AnimateOptions = Partial<ExtendedPosition> & {
 };
 
 /**
+ * Configuration of an equirectangular panorama
+ */
+export type EquirectangularPanorama = {
+    path: string;
+    data?: PanoData | PanoDataProvider;
+};
+
+/**
  * Crop information of an equirectangular panorama
  */
 export type PanoData = {
-    isEquirectangular: true;
+    isEquirectangular?: true;
     fullWidth: number;
-    fullHeight: number;
-    croppedWidth: number;
-    croppedHeight: number;
+    fullHeight?: number;
+    croppedWidth?: number;
+    croppedHeight?: number;
     croppedX: number;
     croppedY: number;
     poseHeading?: number;
@@ -233,7 +241,11 @@ export type ClickData = {
     /**
      * Original element which received the click
      */
-    target: HTMLElement;
+    target?: HTMLElement;
+    /**
+     * Original event which triggered the click
+     */
+    originalEvent?: Event;
     /**
      * List of THREE scenes objects under the mouse
      */
@@ -262,6 +274,7 @@ export type NavbarCustomButton = {
     id?: string;
     /**
      * Tooltip displayed when the mouse is over the button
+     * If can be a key in the global `lang` config
      */
     title?: string;
     /**
@@ -340,8 +353,8 @@ export type ViewerConfig = {
     moveSpeed?: number;
     /** @default 1 */
     zoomSpeed?: number;
-    /** @default true */
-    moveInertia?: boolean;
+    /** @default 0.8 */
+    moveInertia?: boolean | number;
     /** @default true */
     mousewheel?: boolean;
     /** @default true */
@@ -352,6 +365,8 @@ export type ViewerConfig = {
     touchmoveTwoFingers?: boolean;
     panoData?: PanoData | PanoDataProvider;
     requestHeaders?: Record<string, string> | ((url: string) => Record<string, string>);
+    /** @default '#000' */
+    canvasBackground?: string;
     /** @default '{ alpha: true, antialias: true }' */
     rendererParameters?: WebGLRendererParameters;
     /** @default false */
@@ -360,7 +375,7 @@ export type ViewerConfig = {
     navbar?: boolean | string | Array<string | NavbarCustomButton>;
     lang?: Record<string, string>;
     keyboard?: boolean | 'always' | 'fullscreen' | Record<string, ACTIONS | ((viewer: Viewer) => void)>;
-    keyboardActions?: Record<string, ACTIONS | ((viewer: Viewer) => void)>;
+    keyboardActions?: Record<string, ACTIONS | ((viewer: Viewer, e: KeyboardEvent) => void)>;
 };
 
 /**
@@ -372,6 +387,7 @@ export type ParsedViewerConfig = Omit<
     | 'plugins'
     | 'defaultYaw'
     | 'defaultPitch'
+    | 'moveInertia'
     | 'fisheye'
     | 'requestHeaders'
     | 'navbar'
@@ -381,6 +397,7 @@ export type ParsedViewerConfig = Omit<
     plugins?: Array<[PluginConstructor, any]>;
     defaultYaw?: number;
     defaultPitch?: number;
+    moveInertia?: number;
     fisheye?: number;
     requestHeaders?: (url: string) => Record<string, string>;
     navbar?: Array<string | NavbarCustomButton>;

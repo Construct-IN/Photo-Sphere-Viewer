@@ -1,5 +1,6 @@
 import assert from 'assert';
-import { cleanCssPosition, getXMPValue, parseAngle, parsePoint, parseSpeed, speedToDuration } from './psv';
+import { cleanCssPosition, getXMPValue, mergePanoData, parseAngle, parsePoint, parseSpeed, speedToDuration } from './psv';
+import { PanoData } from '../model';
 
 describe('utils:psv:parseAngle', () => {
     it('should normalize number', () => {
@@ -82,7 +83,7 @@ describe('utils:psv:parseAngle', () => {
                 parseAngle('foobar');
             },
             /Unknown angle "foobar"/,
-            'foobar'
+            'foobar',
         );
 
         assert.throws(
@@ -90,7 +91,7 @@ describe('utils:psv:parseAngle', () => {
                 parseAngle('200gr');
             },
             /Unknown angle unit "gr"/,
-            '200gr'
+            '200gr',
         );
     });
 });
@@ -254,7 +255,7 @@ describe('utils:psv:parseSpeed', () => {
                 parseSpeed('10rpsec');
             },
             /Unknown speed unit "rpsec"/,
-            '10rpsec'
+            '10rpsec',
         );
     });
 
@@ -265,20 +266,20 @@ describe('utils:psv:parseSpeed', () => {
 
 describe('utils:psv:getXMPValue', () => {
     it('should parse XMP data with children', () => {
-        const data =
-            '<rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/">\
-      <GPano:ProjectionType>equirectangular</GPano:ProjectionType>\
-      <GPano:UsePanoramaViewer>True</GPano:UsePanoramaViewer>\
-      <GPano:CroppedAreaImageWidthPixels>5376</GPano:CroppedAreaImageWidthPixels>\
-      <GPano:CroppedAreaImageHeightPixels>2688</GPano:CroppedAreaImageHeightPixels>\
-      <GPano:FullPanoWidthPixels>5376</GPano:FullPanoWidthPixels>\
-      <GPano:FullPanoHeightPixels>2688</GPano:FullPanoHeightPixels>\
-      <GPano:CroppedAreaLeftPixels>0</GPano:CroppedAreaLeftPixels>\
-      <GPano:CroppedAreaTopPixels>0</GPano:CroppedAreaTopPixels>\
-      <GPano:PoseHeadingDegrees>270.0</GPano:PoseHeadingDegrees>\
-      <GPano:PosePitchDegrees>0</GPano:PosePitchDegrees>\
-      <GPano:PoseRollDegrees>0.2</GPano:PoseRollDegrees>\
-    </rdf:Description>';
+        const data = `
+<rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/">
+      <GPano:ProjectionType>equirectangular</GPano:ProjectionType>
+      <GPano:UsePanoramaViewer>True</GPano:UsePanoramaViewer>
+      <GPano:CroppedAreaImageWidthPixels>5376</GPano:CroppedAreaImageWidthPixels>
+      <GPano:CroppedAreaImageHeightPixels>2688</GPano:CroppedAreaImageHeightPixels>
+      <GPano:FullPanoWidthPixels>5376</GPano:FullPanoWidthPixels>
+      <GPano:FullPanoHeightPixels>2688</GPano:FullPanoHeightPixels>
+      <GPano:CroppedAreaLeftPixels>0</GPano:CroppedAreaLeftPixels>
+      <GPano:CroppedAreaTopPixels>0</GPano:CroppedAreaTopPixels>
+      <GPano:PoseHeadingDegrees>270.0</GPano:PoseHeadingDegrees>
+      <GPano:PosePitchDegrees>0</GPano:PosePitchDegrees>
+      <GPano:PoseRollDegrees>0.2</GPano:PoseRollDegrees>
+</rdf:Description>`;
 
         assert.deepStrictEqual(
             [
@@ -292,24 +293,24 @@ describe('utils:psv:getXMPValue', () => {
                 getXMPValue(data, 'PosePitchDegrees'),
                 getXMPValue(data, 'PoseRollDegrees'),
             ],
-            [5376, 2688, 5376, 2688, 0, 0, 270, 0, 0]
+            [5376, 2688, 5376, 2688, 0, 0, 270, 0, 0],
         );
     });
 
     it('should parse XMP data with attributes', () => {
-        const data =
-            '<rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"\
-      GPano:ProjectionType="equirectangular"\
-      GPano:UsePanoramaViewer="True"\
-      GPano:CroppedAreaImageWidthPixels="5376"\
-      GPano:CroppedAreaImageHeightPixels="2688"\
-      GPano:FullPanoWidthPixels="5376"\
-      GPano:FullPanoHeightPixels="2688"\
-      GPano:CroppedAreaLeftPixels="0"\
-      GPano:CroppedAreaTopPixels="0"\
-      GPano:PoseHeadingDegrees="270"\
-      GPano:PosePitchDegrees="0"\
-      GPano:PoseRollDegrees="0"/>';
+        const data = `
+<rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
+    GPano:ProjectionType="equirectangular"
+    GPano:UsePanoramaViewer="True"
+    GPano:CroppedAreaImageWidthPixels="5376"
+    GPano:CroppedAreaImageHeightPixels="2688"
+    GPano:FullPanoWidthPixels="5376"
+    GPano:FullPanoHeightPixels="2688"
+    GPano:CroppedAreaLeftPixels="0"
+    GPano:CroppedAreaTopPixels="0"
+    GPano:PoseHeadingDegrees="270"
+    GPano:PosePitchDegrees="0"
+    GPano:PoseRollDegrees="0"/>`;
 
         assert.deepStrictEqual(
             [
@@ -323,7 +324,7 @@ describe('utils:psv:getXMPValue', () => {
                 getXMPValue(data, 'PosePitchDegrees'),
                 getXMPValue(data, 'PoseRollDegrees'),
             ],
-            [5376, 2688, 5376, 2688, 0, 0, 270, 0, 0]
+            [5376, 2688, 5376, 2688, 0, 0, 270, 0, 0],
         );
     });
 });
@@ -350,7 +351,7 @@ describe('utils:psv:cleanPosition', () => {
         assert.strictEqual(cleanCssPosition('foo bar'), null);
         assert.strictEqual(cleanCssPosition('TOP CENTER'), null);
         assert.strictEqual(cleanCssPosition(''), null);
-        assert.strictEqual(cleanCssPosition(undefined), null);
+        assert.strictEqual(cleanCssPosition(undefined as any), null);
     });
 
     it('should allow XY order', () => {
@@ -379,3 +380,190 @@ describe('utils:psv:speedToDuration', () => {
         assert.strictEqual(speedToDuration('2rpm', Math.PI), 15000);
     });
 });
+
+describe('utils:psv:mergePanoData', () => {
+    it('should generate default panoData for 2:1 image', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 1000), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 1000,
+            croppedX: 0,
+            croppedY: 0,
+        } satisfies PanoData);
+    });
+
+    it('should generate default panoData for partial image (horizontal)', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 500), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 250,
+        } satisfies PanoData);
+    });
+
+    it('should generate default panoData for partial image (vertical)', () => {
+        assertDeepEqualLenient(mergePanoData(1000, 1000), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: 500,
+            croppedY: 0,
+        } satisfies PanoData);
+    });
+
+    it('should keep XMP data', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 500, undefined, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        } satisfies PanoData);
+    });
+
+    it('should keep custom data over XMP', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 500, {
+            fullWidth: 3000,
+            fullHeight: 1500,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 500,
+            croppedY: 1000,
+        }, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        }), {
+            fullWidth: 3000,
+            fullHeight: 1500,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 500,
+            croppedY: 1000,
+        } satisfies PanoData);
+    });
+
+    it('should fix invalid fullWidth/fullHeight', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 500, {
+            fullWidth: 2000,
+            fullHeight: 990, // KO
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        } satisfies PanoData);
+    });
+
+    it('should fix invalid croppedY', () => {
+        assertDeepEqualLenient(mergePanoData(2000, 500, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 1000, // KO
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 500,
+        } satisfies PanoData);
+
+        assertDeepEqualLenient(mergePanoData(2000, 500, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: -500, // KO
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 2000,
+            croppedHeight: 500,
+            croppedX: 0,
+            croppedY: 0,
+        } satisfies PanoData);
+    });
+
+    it('should fix invalid croppedX', () => {
+        assertDeepEqualLenient(mergePanoData(1000, 1000, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: 1500, // KO
+            croppedY: 0,
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: 1000,
+            croppedY: 0,
+        } satisfies PanoData);
+
+        assertDeepEqualLenient(mergePanoData(1000, 1000, {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: -500, // KO
+            croppedY: 0,
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: 0,
+            croppedY: 0,
+        } satisfies PanoData);
+    });
+
+    it('should complete missing fullHeight', () => {
+        assertDeepEqualLenient(mergePanoData(1000, 1000, {
+            fullWidth: 2000,
+            croppedX: 500,
+            croppedY: 0,
+        }), {
+            fullWidth: 2000,
+            fullHeight: 1000,
+            croppedWidth: 1000,
+            croppedHeight: 1000,
+            croppedX: 500,
+            croppedY: 0,
+        });
+    });
+});
+
+function assertDeepEqualLenient(actual: any, expected: any) {
+    const picked = {} as any;
+    Object.keys(expected).forEach((key) => {
+        picked[key] = actual[key];
+    });
+    assert.deepStrictEqual(picked, expected);
+}

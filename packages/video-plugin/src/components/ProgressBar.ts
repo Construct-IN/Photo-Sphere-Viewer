@@ -19,7 +19,7 @@ export class ProgressBar extends AbstractComponent {
 
     constructor(
         private readonly plugin: VideoPlugin,
-        viewer: Viewer
+        viewer: Viewer,
     ) {
         super(viewer, {
             className: 'psv-video-progressbar',
@@ -40,7 +40,7 @@ export class ProgressBar extends AbstractComponent {
         this.slider = new utils.Slider(
             this.container,
             utils.SliderDirection.HORIZONTAL,
-            this.__onSliderUpdate.bind(this)
+            this.__onSliderUpdate.bind(this),
         );
 
         this.viewer.addEventListener(events.PanoramaLoadedEvent.type, this);

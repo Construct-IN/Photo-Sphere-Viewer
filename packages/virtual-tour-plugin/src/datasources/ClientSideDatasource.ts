@@ -3,11 +3,11 @@ import { VirtualTourNode } from '../model';
 import { AbstractDatasource } from './AbstractDataSource';
 
 export class ClientSideDatasource extends AbstractDatasource {
-    loadNode(nodeId: string) {
+    async loadNode(nodeId: string) {
         if (this.nodes[nodeId]) {
-            return Promise.resolve(this.nodes[nodeId]);
+            return this.nodes[nodeId];
         } else {
-            return Promise.reject(new PSVError(`Node ${nodeId} not found`));
+            throw new PSVError(`Node ${nodeId} not found`);
         }
     }
 
@@ -25,24 +25,14 @@ export class ClientSideDatasource extends AbstractDatasource {
             if (nodes[node.id]) {
                 throw new PSVError(`Duplicate node ${node.id}`);
             }
-            if (!node.links) {
-                utils.logWarn(`Node ${node.id} has no links`);
-                node.links = [];
-            }
 
             nodes[node.id] = node;
         });
 
         rawNodes.forEach((node) => {
+            this.__checkLinks(node, nodes);
+
             node.links.forEach((link) => {
-                if (!nodes[link.nodeId]) {
-                    throw new PSVError(`Target node ${link.nodeId} of node ${node.id} does not exists`);
-                }
-
-                link.gps = link.gps || nodes[link.nodeId].gps;
-
-                this.checkLink(node, link);
-
                 linkedNodes[link.nodeId] = true;
             });
         });
@@ -54,5 +44,36 @@ export class ClientSideDatasource extends AbstractDatasource {
         });
 
         this.nodes = nodes;
+    }
+
+    updateNode(rawNode: Partial<VirtualTourNode> & { id: VirtualTourNode['id'] }) {
+        if (!rawNode.id) {
+            throw new PSVError('No id given for node');
+        }
+
+        const node = this.nodes[rawNode.id];
+        if (!node) {
+            throw new PSVError(`Node ${rawNode.id} does not exist`);
+        }
+
+        Object.assign(node, rawNode);
+
+        this.checkNode(node);
+
+        this.__checkLinks(node, this.nodes);
+
+        return node;
+    }
+
+    private __checkLinks(node: VirtualTourNode, nodes: Record<string, VirtualTourNode>) {
+        node.links.forEach((link) => {
+            if (!nodes[link.nodeId]) {
+                throw new PSVError(`Target node ${link.nodeId} of node ${node.id} does not exists`);
+            }
+
+            link.gps = link.gps || nodes[link.nodeId].gps;
+
+            this.checkLink(node, link);
+        });
     }
 }

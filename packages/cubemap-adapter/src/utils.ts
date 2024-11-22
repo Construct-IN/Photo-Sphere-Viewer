@@ -7,7 +7,7 @@ const CUBE_ARRAY = [0, 2, 4, 5, 3, 1];
 const CUBE_HASHMAP: CubemapFaces[] = ['left', 'right', 'top', 'bottom', 'back', 'front'];
 
 export function isCubemap(cubemap: any): cubemap is Cubemap {
-    return cubemap && typeof cubemap === 'object' && CUBE_HASHMAP.every((side) => side in cubemap);
+    return cubemap && typeof cubemap === 'object' && CUBE_HASHMAP.every(side => side in cubemap);
 }
 
 /**
@@ -31,7 +31,7 @@ export function cleanCubemapArray<T>(panorama: T[]): T[] {
 /**
  * Given an object where keys are faces names, returns an array in 3JS order
  */
-export function cleanCubemap<T>(cubemap: { [K in CubemapFaces]: T }): T[] {
+export function cleanCubemap<T>(cubemap: Record<CubemapFaces, T>): T[] {
     const cleanPanorama: T[] = [];
 
     if (!isCubemap(cubemap)) {

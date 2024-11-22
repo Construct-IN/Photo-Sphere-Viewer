@@ -9,16 +9,16 @@ Adds a compass on the viewer to represent which portion of the sphere is current
 This plugin is available in the [@photo-sphere-viewer/compass-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/compass-plugin) package.
 :::
 
-[[toc]]
-
 ## Usage
 
 The plugin can be configured with a list of `hotspots` which are small dots on the compass. It can also display markers positions.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+import { CompassPlugin } from '@photo-sphere-viewer/compass-plugin';
+
+const viewer = new Viewer({
     plugins: [
-        [PhotoSphereViewer.CompassPlugin, {
+        [CompassPlugin, {
             hotspots: [
                 { yaw: '45deg' }, 
                 { yaw: '60deg', color: 'red' },
@@ -36,76 +36,12 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Compass Demo
 packages:
     - name: compass-plugin
-      imports: CompassPlugin
       style: true
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    panorama: baseUrl + 'sphere.jpg',
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-
-    plugins: [
-        [CompassPlugin, {
-            hotspots: [
-                { yaw: '0deg' },
-                { yaw: '90deg' },
-                { yaw: '180deg' },
-                { yaw: '270deg' },
-            ],
-        }],
-        [MarkersPlugin, {
-            markers: [
-                {
-                    id: 'pin',
-                    position: { yaw: 0.11, pitch: 0.32 },
-                    image: baseUrl + 'pictos/pin-blue.png',
-                    size: { width: 32, height: 32 },
-                    anchor: 'bottom center',
-                    data: { compass: '#304ACC' },
-                },
-                {
-                    id: 'polygon',
-                    polygonPixels: [
-                        2941, 1413, 3042, 1402, 3222, 1419, 3433, 1463, 
-                        3480, 1505, 3438, 1538, 3241, 1543, 3041, 1555, 
-                        2854, 1559, 2739, 1516, 2775, 1469, 2941, 1413,
-                    ],
-                    svgStyle: {
-                        fill: 'rgba(255,0,0,0.2)',
-                        stroke: 'rgba(255, 0, 50, 0.8)',
-                        strokeWidth: '2px',
-                    },
-                    data: { compass: 'rgba(255, 0, 50, 0.8)' },
-                },
-                {
-                    id: 'polyline',
-                    polylinePixels: [
-                        2478, 1635, 2184, 1747, 1674, 1953, 1166, 1852, 
-                        709, 1669, 301, 1519, 94, 1399, 34, 1356,
-                    ],
-                    svgStyle: {
-                        stroke: 'rgba(80, 150, 50, 0.8)',
-                        strokeLinecap: 'round',
-                        strokeLinejoin: 'round',
-                        strokeWidth: '20px',
-                    },
-                    data: { compass: 'rgba(80, 150, 50, 0.8)' },
-                },
-            ],
-        }],
-    ],
-});
-```
+<<< ./demos-src/compass.js
 
 :::
 
@@ -138,6 +74,14 @@ Position of the widget, accepted positions are combinations of `top`, `center`, 
 -   updatable: yes
 
 Allows to click on the compass to rotate the viewer.
+
+#### `resetPitch`
+
+-   type: `boolean`
+-   default: `true`
+-   updatable: yes
+
+Reset viewer pitch to `defaultPitch` when using the compass navigation.
 
 #### `hotspots`
 

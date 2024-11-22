@@ -6,7 +6,7 @@ export class CustomNavbarButton extends HTMLElement {
     constructor() {
         super();
 
-        const dom = this.attachShadow({ mode: 'closed' });
+        const dom = this.attachShadow({ mode: 'open' });
 
         const style = document.createElement('style');
         dom.appendChild(style);

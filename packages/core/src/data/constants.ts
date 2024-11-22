@@ -19,7 +19,7 @@ export const DEFAULT_TRANSITION = 1500;
 export const ANIMATION_MIN_DURATION = 500;
 
 /**
- * Number of pixels bellow which a mouse move will be considered as a click
+ * Number of pixels below which a mouse move will be considered as a click
  */
 export const MOVE_THRESHOLD = 4;
 
@@ -44,11 +44,6 @@ export const TWOFINGERSOVERLAY_DELAY = 100;
 export const CTRLZOOM_TIMEOUT = 2000;
 
 /**
- * Duration of the mouse position history used to compute inertia
- */
-export const INERTIA_WINDOW = 300;
-
-/**
  * Radius of the SphereGeometry, Half-length of the BoxGeometry
  */
 export const SPHERE_RADIUS = 10;
@@ -64,7 +59,7 @@ export const VIEWER_DATA = 'photoSphereViewer';
 export const CAPTURE_EVENTS_CLASS = 'psv--capture-event';
 
 /**
- * Actions available for {@link ViewerConfig['keyboard']} configuration
+ * Actions available for {@link ViewerConfig['keyboardActions']} configuration
  */
 export enum ACTIONS {
     ROTATE_UP = 'ROTATE_UP',
@@ -125,8 +120,6 @@ export const ICONS = {
  * Collection of easing functions
  * @see https://gist.github.com/frederickk/6165768
  */
-// @formatter:off
-// prettier-ignore
 export const EASINGS: Record<string, (t: number) => number> = {
     linear: (t: number) => t,
 
@@ -158,4 +151,3 @@ export const EASINGS: Record<string, (t: number) => number> = {
     outCirc: (t: number) => Math.sqrt(1 - (t - 1) * (t - 1)),
     inOutCirc: (t: number) => (t *= 2) < 1 ? 0.5 - 0.5 * Math.sqrt(1 - t * t) : 0.5 + 0.5 * Math.sqrt(1 - (t -= 2) * t),
 };
-// @formatter:on

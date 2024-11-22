@@ -1,3 +1,4 @@
+import { MathUtils } from 'three';
 import { ConfigChangedEvent, LoadProgressEvent } from '../events';
 import { getStyleProperty } from '../utils';
 import type { Viewer } from '../Viewer';
@@ -38,6 +39,12 @@ export class Loader extends AbstractComponent {
         this.border = parseInt(getStyleProperty(this.loader, '--psv-loader-border'), 10);
         this.thickness = parseInt(getStyleProperty(this.loader, '--psv-loader-tickness'), 10);
 
+        const halfSize = this.size / 2;
+        this.canvas.innerHTML = `
+            <circle cx="${halfSize}" cy="${halfSize}" r="${halfSize}" fill="${this.color}"/>
+            <path d="" fill="none" stroke="${this.textColor}" stroke-width="${this.thickness}" stroke-linecap="round"/>
+        `;
+
         this.viewer.addEventListener(ConfigChangedEvent.type, this);
 
         this.__updateContent();
@@ -58,7 +65,7 @@ export class Loader extends AbstractComponent {
      */
     handleEvent(e: Event) {
         if (e instanceof ConfigChangedEvent) {
-            e.containsOptions('loadingImg', 'loadingTxt') && this.__updateContent();
+            e.containsOptions('loadingImg', 'loadingTxt', 'lang') && this.__updateContent();
         }
     }
 
@@ -66,7 +73,7 @@ export class Loader extends AbstractComponent {
      * Sets the loader progression
      */
     setProgress(value: number) {
-        const angle = (Math.min(value, 99.999) / 100) * Math.PI * 2;
+        const angle = (MathUtils.clamp(value, 0, 99.999) / 100) * Math.PI * 2;
         const halfSize = this.size / 2;
         const startX = halfSize;
         const startY = this.thickness / 2 + this.border;
@@ -75,11 +82,9 @@ export class Loader extends AbstractComponent {
         const endY = -Math.cos(angle) * radius + halfSize;
         const largeArc = value > 50 ? '1' : '0';
 
-        this.canvas.innerHTML = `
-            <circle cx="${halfSize}" cy="${halfSize}" r="${halfSize}" fill="${this.color}"/>
-            <path d="M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}" 
-                  fill="none" stroke="${this.textColor}" stroke-width="${this.thickness}" stroke-linecap="round"/>
-        `;
+        this.canvas.querySelector('path').setAttributeNS(null, 'd',
+            `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}`,
+        );
 
         this.viewer.dispatchEvent(new LoadProgressEvent(Math.round(value)));
     }

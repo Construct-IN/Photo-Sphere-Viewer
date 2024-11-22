@@ -1,7 +1,12 @@
-node_modules
-yarn-error.log
+.nyc_output
+.tmp
 .turbo
-.typedoc
-!docs/.typedoc
+cypress/screenshots
+cypress/snapshots/diff
 dist
-/public
+docs/.vitepress/.temp
+docs/.vitepress/cache
+node_modules
+public
+reports
+yarn-error.log

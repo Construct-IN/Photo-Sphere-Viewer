@@ -9,6 +9,7 @@ import { addClasses, getConfigParser, resolveBoolean, toggleClass } from '../uti
  */
 export type ButtonConfig = {
     id?: string;
+    tagName?: string;
     className?: string;
     title?: string;
     /**
@@ -38,6 +39,7 @@ export type ButtonConfig = {
 
 const getConfig = getConfigParser<ButtonConfig>({
     id: null,
+    tagName: null,
     className: null,
     title: null,
     hoverScale: false,
@@ -97,11 +99,14 @@ export abstract class AbstractButton extends AbstractComponent {
 
     constructor(navbar: Navbar, config: ButtonConfig) {
         super(navbar, {
+            tagName: config.tagName,
             className: `psv-button ${config.hoverScale ? 'psv-button--hover-scale' : ''} ${config.className || ''}`,
         });
 
         this.config = getConfig(config);
-        this.config.id = (this.constructor as typeof AbstractButton).id;
+        if (!config.id) {
+            this.config.id = (this.constructor as typeof AbstractButton).id;
+        }
 
         if (config.icon) {
             this.__setIcon(config.icon);
@@ -110,7 +115,7 @@ export abstract class AbstractButton extends AbstractComponent {
         this.state.width = this.container.offsetWidth;
 
         if (this.config.title) {
-            this.container.title = this.config.title;
+            this.container.title = this.viewer.config.lang[this.config.title] ?? this.config.title;
         } else if (this.id && this.id in this.viewer.config.lang) {
             this.container.title = (this.viewer.config.lang as any)[this.id];
         }

@@ -9,11 +9,55 @@ Create virtual tours by linking multiple panoramas.
 This plugin is available in the [@photo-sphere-viewer/virtual-tour-plugin](https://www.npmjs.com/package/@photo-sphere-viewer/virtual-tour-plugin) package.
 :::
 
-[[toc]]
-
 ## Usage
 
-The plugin allows to define `nodes` which contains a `panorama` and one or more `links` to other nodes.
+```js
+import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin';
+
+const viewer = new Viewer({
+    plugins: [
+        [VirtualTourPlugin, {
+            nodes: [...],
+            // or
+            getNode: async (id) => { ... },
+            startNodeId: ...,
+        }],
+    ],
+});
+```
+
+The plugin uses a list of nodes which contains a `panorama` with one or more `links` to other nodes and additional options.
+
+The nodes can be provided all at once or asynchronously as the user navigates.
+
+:::: tabs
+
+::: tab Client mode
+In client mode you must provide all the `nodes` at once, you can also change the nodes with the `setNodes` method.
+
+```js
+nodes: [
+    { id: 'node-1', panorama: '001.jpg', links: [{ nodeId: 'node-2', position: { textureX: 1500, textureY: 780 } }] },
+    { id: 'node-2', panorama: '002.jpg', links: [{ nodeId: 'node-1', position: { textureX: 3000, textureY: 780 } }] },
+],
+```
+
+:::
+
+::: tab Server mode
+In server mode you provide the `getNode` function which returns a Promise to load the data of a node.
+
+```js
+startNodeId: 'node-1',
+getNode: async (nodeId) => {
+    const res = await fetch(`/api/nodes/${nodeId}`);
+    return await res.json();
+},
+```
+
+:::
+
+::::
 
 There are two different ways to define the position of the links : the manual mode and the GPS mode.
 
@@ -58,36 +102,6 @@ const node = {
 
 ::::
 
-The nodes can be provided all at once or asynchronously as the user navigates.
-
-:::: tabs
-
-::: tab Client mode
-In client mode you must provide all the `nodes` at once, you can also change the nodes with the `setNodes` method.
-
-```js
-const nodes = [
-    { id: 'node-1', panorama: '001.jpg', links: [{ nodeId: 'node-2', position: { textureX: 1500, textureY: 780 } }] },
-    { id: 'node-2', panorama: '002.jpg', links: [{ nodeId: 'node-1', position: { textureX: 3000, textureY: 780 } }] },
-];
-```
-
-:::
-
-::: tab Server mode
-In server mode you provide the `getNode` function which returns a Promise to load the data of a node.
-
-```js
-getNode = async (nodeId) => {
-    const res = await fetch(`/api/nodes/${nodeId}`);
-    return await res.json();
-};
-```
-
-:::
-
-::::
-
 ::: tip
 The [Gallery plugin](./gallery.md), [Map plugin](./map.md), [Plan plugin](./plan.md) and [Compass plugin](./compass.md) plugins can be easily integrated with the virtual tour.
 :::
@@ -100,126 +114,14 @@ The [Gallery plugin](./gallery.md), [Map plugin](./map.md), [Plan plugin](./plan
 title: PSV Virtual Tour Demo
 packages:
     - name: virtual-tour-plugin
-      imports: VirtualTourPlugin
       style: true
     - name: gallery-plugin
-      imports: GalleryPlugin
       style: true
     - name: markers-plugin
-      imports: MarkersPlugin
       style: true
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-const caption = 'Cape Florida Light, Key Biscayne <b>&copy; Pixexid</b>';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-    defaultYaw: '130deg',
-    navbar: 'zoom move gallery caption fullscreen',
-
-    plugins: [
-        MarkersPlugin,
-        [GalleryPlugin, {
-            thumbnailSize: { width: 100, height: 100 },
-        }],
-        [VirtualTourPlugin, {
-            positionMode: 'gps',
-            renderMode: '3d',
-        }],
-    ],
-});
-
-const virtualTour = viewer.getPlugin(VirtualTourPlugin);
-
-const markerLighthouse = {
-    id: 'marker-1',
-    image: baseUrl + 'pictos/pin-red.png',
-    tooltip: 'Cape Florida Light, Key Biscayne',
-    size: { width: 32, height: 32 },
-    anchor: 'bottom center',
-    gps: [-80.155973, 25.666601, 29 + 3],
-};
-
-virtualTour.setNodes([
-    {
-        id: '1',
-        panorama: baseUrl + 'tour/key-biscayne-1.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-1-thumb.jpg',
-        name: 'One',
-        caption: `[1] ${caption}`,
-        links: [{ nodeId: '2' }],
-        markers: [markerLighthouse],
-        gps: [-80.156479, 25.666725, 3],
-        sphereCorrection: { pan: '33deg' },
-    },
-    {
-        id: '2',
-        panorama: baseUrl + 'tour/key-biscayne-2.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-2-thumb.jpg',
-        name: 'Two',
-        caption: `[2] ${caption}`,
-        links: [{ nodeId: '3' }, { nodeId: '1' }],
-        markers: [markerLighthouse],
-        gps: [-80.156168, 25.666623, 3],
-        sphereCorrection: { pan: '42deg' },
-    },
-    {
-        id: '3',
-        panorama: baseUrl + 'tour/key-biscayne-3.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-3-thumb.jpg',
-        name: 'Three',
-        caption: `[3] ${caption}`,
-        links: [{ nodeId: '4' }, { nodeId: '2' }, { nodeId: '5' }],
-        gps: [-80.155932, 25.666498, 5],
-        sphereCorrection: { pan: '50deg' },
-    },
-    {
-        id: '4',
-        panorama: baseUrl + 'tour/key-biscayne-4.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-4-thumb.jpg',
-        name: 'Four',
-        caption: `[4] ${caption}`,
-        links: [{ nodeId: '3' }, { nodeId: '5' }],
-        gps: [-80.156089, 25.666357, 3],
-        sphereCorrection: { pan: '-78deg' },
-    },
-    {
-        id: '5',
-        panorama: baseUrl + 'tour/key-biscayne-5.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-5-thumb.jpg',
-        name: 'Five',
-        caption: `[5] ${caption}`,
-        links: [{ nodeId: '6' }, { nodeId: '3' }, { nodeId: '4' }],
-        gps: [-80.156292, 25.666446, 2],
-        sphereCorrection: { pan: '170deg' },
-    },
-    {
-        id: '6',
-        panorama: baseUrl + 'tour/key-biscayne-6.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-6-thumb.jpg',
-        name: 'Six',
-        caption: `[6] ${caption}`,
-        links: [{ nodeId: '5' }, { nodeId: '7' }],
-        gps: [-80.156465, 25.666496, 2],
-        sphereCorrection: { pan: '65deg' },
-    },
-    {
-        id: '7',
-        panorama: baseUrl + 'tour/key-biscayne-7.jpg',
-        thumbnail: baseUrl + 'tour/key-biscayne-7-thumb.jpg',
-        name: 'Seven',
-        caption: `[7] ${caption}`,
-        links: [{ nodeId: '6' }],
-        gps: [-80.15707, 25.6665, 3],
-        sphereCorrection: { pan: '110deg', pitch: -3 },
-    },
-], '2');
-```
+<<< ./demos-src/virtual-tour.js
 
 :::
 
@@ -245,7 +147,7 @@ Refer to the main [config page](../guide/config.md).
 
 -   type: `array`
 
-Definition of the links of this node. [See bellow](#links).
+Definition of the links of this node. [See below](#links).
 
 #### `gps` (required in GPS mode)
 
@@ -369,7 +271,7 @@ Initial list of nodes. You can also call `setNodes` method later.
 
 Callback to load the configuration of a node.
 
-#### `startNodeId`
+#### `startNodeId` (required in server mode)
 
 -   type: `string`
 -   updatable: no
@@ -456,6 +358,22 @@ The default behaviour is to rotate the view to face the direction of the link an
 
 If the [Compass plugin](./compass.md) is enabled, displays the links on the compass.
 
+#### `showLinkTooltip`
+
+-   type: `boolean`
+-   default: `true`
+-   updatable: no
+
+Should a tooltip be displayed on each link. The default tooltip contains `name` + `thumbnail` + `caption`, it is customizable with the [getLinkTooltip](#getlinktooltipcontent-link-node) option.
+
+#### `getLinkTooltip(content, link, node)`
+
+-   type: `function(string, link, node) => string`
+-   default: `null`
+-   updatable: no
+
+Callback used to replace/modify the tooltip for a link. The first parameter is the default tooltip content.
+
 #### `map` (client mode only)
 
 Configuration when using the [Map plugin](./map.md).
@@ -529,15 +447,7 @@ Each node can still have a `map` property to override `color`, `image` and `size
 
 :::::
 
-#### `getLinkTooltip(content, link, node)`
-
--   type: `function(string, link, node) => string`
--   default: `null`
--   updatable: no
-
-Callback used to replace/modify the tooltip for a link. The first parameter is the default tooltip content which contains the node `name` + `thumbnail` + `caption`.
-
-#### `arrowStyle` (3d mode only)
+#### `arrowStyle`
 
 -   type: `object`
 -   updatable: no
@@ -580,6 +490,18 @@ Default value is:
 #### `setNodes(nodes, [startNodeId])` (client mode only)
 
 Changes the nodes and display the first one (or the one designated by `startNodeId`).
+
+#### `updateNode(node)` (client mode only)
+
+Updates a single node. If it is the current node, the viewer will be updated accordingly. All attributes or optionnal but `id`.
+
+```js
+virtualTourPlugin.updateNode({
+    id: 'node-1',
+    caption: 'New caption',
+    links: [...newLinks],
+});
+```
 
 #### `setCurrentNode(nodeId, [options])`
 

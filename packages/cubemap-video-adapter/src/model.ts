@@ -11,4 +11,12 @@ export type CubemapVideoPanorama = AbstractVideoPanorama & {
     equiangular?: boolean;
 };
 
+/**
+ * Size information of a cubemap panorama
+ */
+export type CubemapVideoData = {
+    isCubemap: true;
+    equiangular: boolean;
+};
+
 export type CubemapVideoAdapterConfig = AbstractVideoAdapterConfig;

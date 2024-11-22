@@ -7,8 +7,10 @@ This adapter is available in the main `@photo-sphere-viewer/core` package.
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: [PhotoSphereViewer.DualFisheyeAdapter, {
+import { DualFisheyeAdapter } from '@photo-sphere-viewer/core';
+
+const viewer = new Viewer({
+    adapter: [DualFisheyeAdapter, {
         // config
     }],
     panorama: 'path/panorama.jpg',
@@ -23,23 +25,9 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Dual fisheye Demo
 packages:
     - name: core
-      imports: DualFisheyeAdapter
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: DualFisheyeAdapter,
-    panorama: baseUrl + 'dualfisheye.jpg',
-    caption: 'Kotka archipelago, Finland <b>&copy; Jonna Luostari</b>',
-    sphereCorrection: { tilt: 0.1 },
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-});
-```
+<<< ./demos-src/dual-fisheye.js
 
 :::
 

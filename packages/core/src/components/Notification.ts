@@ -90,7 +90,7 @@ export class Notification extends AbstractComponent {
         this.container.classList.add('psv-notification--visible');
         this.state.visible = true;
 
-        this.viewer.dispatchEvent(new ShowNotificationEvent(config.id));
+        this.viewer.dispatchEvent(new ShowNotificationEvent(this.state.contentId));
 
         if (config.timeout) {
             this.state.timeout = setTimeout(() => this.hide(this.state.contentId), config.timeout);

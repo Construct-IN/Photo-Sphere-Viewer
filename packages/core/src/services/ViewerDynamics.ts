@@ -16,7 +16,7 @@ export class ViewerDynamics extends AbstractService {
             min: 0,
             max: 100,
             wrap: false,
-        }
+        },
     );
 
     readonly position = new MultiDynamic(
@@ -37,7 +37,7 @@ export class ViewerDynamics extends AbstractService {
                 max: Math.PI / 2,
                 wrap: false,
             }),
-        }
+        },
     );
 
     readonly roll = new Dynamic(
@@ -47,10 +47,10 @@ export class ViewerDynamics extends AbstractService {
         },
         {
             defaultValue: 0,
-            min: - Math.PI,
+            min: -Math.PI,
             max: Math.PI,
             wrap: false,
-        }
+        },
     );
 
     /**

@@ -8,13 +8,13 @@ Use the `Animation` helper and `AutorotatePlugin` to create a cool intro.
 autoload: true
 title: PSV Intro Animation Demo
 packages:
-    - name: core
-      imports: utils
     - name: autorotate-plugin
-      imports: AutorotatePlugin
 ```
 
 ```js
+import { Viewer, utils } from '@photo-sphere-viewer/core';
+import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
+
 const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
 
 const animatedValues = {

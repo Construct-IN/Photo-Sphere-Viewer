@@ -18,7 +18,7 @@ export abstract class AbstractComponent {
     /**
      * Container element
      */
-    readonly container: HTMLDivElement = document.createElement('div');
+    readonly container: HTMLElement;
 
     /**
      * Internal properties
@@ -30,10 +30,11 @@ export abstract class AbstractComponent {
 
     constructor(
         protected readonly parent: Viewer | AbstractComponent,
-        config: { className?: string }
+        config: { className?: string; tagName?: string },
     ) {
         this.viewer = parent instanceof AbstractComponent ? parent.viewer : parent;
 
+        this.container = document.createElement(config.tagName ?? 'div');
         this.container.className = config.className || '';
 
         this.parent.children.push(this);
@@ -51,7 +52,7 @@ export abstract class AbstractComponent {
             this.parent.children.splice(childIdx, 1);
         }
 
-        this.children.slice().forEach((child) => child.destroy());
+        this.children.slice().forEach(child => child.destroy());
         this.children.length = 0;
     }
 

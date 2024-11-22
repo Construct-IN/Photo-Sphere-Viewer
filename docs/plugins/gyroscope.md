@@ -14,8 +14,12 @@ This plugin is available in the [@photo-sphere-viewer/gyroscope-plugin](https://
 Once enabled the plugin will add a new "Gyroscope" button only shown when the gyroscope API is available.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    plugins: [PhotoSphereViewer.GyroscopePlugin],
+import { GyroscopePlugin } from '@photo-sphere-viewer/gyroscope-plugin';
+
+const viewer = new Viewer({
+    plugins: [
+        GyroscopePlugin,
+    ],
 });
 ```
 
@@ -29,7 +33,7 @@ There are known inconsistencies of orientation data accross devices. If the pano
 
 ## Example
 
-<ExternalLink href="/demos/plugin-gyroscope.html">Open in a new tab</ExternalLink>
+[Open in a new tab](/demos/plugin-gyroscope.html){target=_blank}
 
 ## Configuration
 

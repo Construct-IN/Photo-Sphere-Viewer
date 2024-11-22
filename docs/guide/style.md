@@ -124,6 +124,7 @@ $psv-loader-width: 100px;
 | variable                 | default                            | description                                      |
 | ------------------------ | ---------------------------------- | ------------------------------------------------ |
 | $psv-overlay-opacity     | .8                                 | Opacity of the overlay                           |
+| $psv-overlay-icon-color  | rgb(48, 48, 48)                    | Color of the overlay icon (if SVG)               |
 | $psv-overlay-title-font  | 30px sans-serif                    | Font of the overlay title                        |
 | $psv-overlay-title-color | black                              | Color of the overlay title                       |
 | $psv-overlay-text-font   | 20px sans-serif                    | Font of the overlay text                         |

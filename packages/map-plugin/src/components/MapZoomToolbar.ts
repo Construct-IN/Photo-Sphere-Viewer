@@ -39,7 +39,7 @@ export class MapZoomToolbar extends AbstractComponent {
         switch (e.type) {
             case 'mousedown':
             case 'touchstart': {
-                const button = utils.getClosest(e.target as HTMLElement, 'svg');
+                const button = utils.getMatchingTarget(e, 'svg[data-delta]');
                 const delta: string = button?.dataset['delta'];
                 if (delta) {
                     cancelAnimationFrame(this.animation);

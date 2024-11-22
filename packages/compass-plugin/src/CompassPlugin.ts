@@ -12,6 +12,7 @@ const getConfig = utils.getConfigParser<CompassPluginConfig, ParsedCompassPlugin
         backgroundSvg: compass,
         coneColor: 'rgba(255, 255, 255, 0.5)',
         navigation: true,
+        resetPitch: false,
         navigationColor: 'rgba(255, 0, 0, 0.2)',
         hotspots: [],
         hotspotColor: 'rgba(0, 0, 0, 0.5)',
@@ -21,7 +22,7 @@ const getConfig = utils.getConfigParser<CompassPluginConfig, ParsedCompassPlugin
         position: (position, { defValue }) => {
             return utils.cleanCssPosition(position, { allowCenter: true, cssOrder: true }) || defValue;
         },
-    }
+    },
 );
 
 /**
@@ -100,7 +101,7 @@ export class CompassPlugin extends AbstractConfigurablePlugin<
                 break;
             case 'set-markers':
                 this.component.setMarkers(
-                    (e as markersEvents.SetMarkersEvent).markers.filter((m) => m.data?.['compass'])
+                    (e as markersEvents.SetMarkersEvent).markers.filter(m => m.data?.['compass']),
                 );
                 break;
         }

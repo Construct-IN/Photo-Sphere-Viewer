@@ -9,8 +9,10 @@ This adapter is available in the [@photo-sphere-viewer/equirectangular-tiles-ada
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: PhotoSphereViewer.EquirectangularTilesAdapter,
+import { EquirectangularTilesAdapter } from '@photo-sphere-viewer/equirectangular-tiles-adapter';
+
+const viewer = new Viewer({
+    adapter: EquirectangularTilesAdapter,
     panorama: {
         width: 12000,
         cols: 16,
@@ -31,31 +33,9 @@ const viewer = new PhotoSphereViewer.Viewer({
 title: PSV Equirectangular Tiles Demo
 packages:
     - name: equirectangular-tiles-adapter
-      imports: EquirectangularTilesAdapter
 ```
 
-```js
-const baseUrl = 'https://photo-sphere-viewer-data.netlify.app/assets/';
-
-const viewer = new Viewer({
-    container: 'viewer',
-    adapter: EquirectangularTilesAdapter,
-    panorama: {
-        width: 6656,
-        cols: 16,
-        rows: 8,
-        baseUrl: `${baseUrl}sphere-small.jpg`,
-        tileUrl: (col, row) => {
-            const num = row * 16 + col + 1;
-            return `${baseUrl}sphere-tiles/image_part_${('000' + num).slice(-3)}.jpg`;
-        },
-    },
-    caption: 'Parc national du Mercantour <b>&copy; Damien Sorel</b>',
-    loadingImg: baseUrl + 'loader.gif',
-    touchmoveTwoFingers: true,
-    mousewheelCtrlKey: true,
-});
-```
+<<< ./demos-src/equirectangular-tiles.js
 
 :::
 
@@ -85,10 +65,6 @@ Shows a warning sign on tiles that cannot be loaded.
 -   default: `true`
 
 Applies antialiasing to high resolutions tiles.
-
-#### `backgroundColor`
-
-See the [equirectangular adapter configuration](./equirectangular.md#backgroundcolor).
 
 #### `resolution`
 

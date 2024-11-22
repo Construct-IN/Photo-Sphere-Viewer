@@ -53,7 +53,7 @@ export class VolumeButton extends AbstractButton {
             this.slider = new utils.Slider(
                 this.range,
                 utils.SliderDirection.VERTICAL,
-                this.__onSliderUpdate.bind(this)
+                this.__onSliderUpdate.bind(this),
             );
 
             this.viewer.addEventListener(events.PanoramaLoadedEvent.type, this);

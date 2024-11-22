@@ -7,7 +7,7 @@ export function gpsToLeaflet(gps: GpsPosition): LatLngLiteral {
 
 export function createLeafletIcon(src: string, size: number, className: string): DivIcon {
     return new DivIcon({
-        html: src && !src.includes('<svg')  ? `<img src="${src}" style="width: 100%; height: 100%">` : src,
+        html: src && !src.includes('<svg') ? `<img src="${src}" style="width: 100%; height: 100%">` : src,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
         className,

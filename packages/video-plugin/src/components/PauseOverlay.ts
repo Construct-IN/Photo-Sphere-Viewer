@@ -9,7 +9,7 @@ export class PauseOverlay extends AbstractComponent {
 
     constructor(
         private readonly plugin: VideoPlugin,
-        viewer: Viewer
+        viewer: Viewer,
     ) {
         super(viewer, {
             className: 'psv-video-overlay',

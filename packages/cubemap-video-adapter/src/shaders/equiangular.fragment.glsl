@@ -1,7 +1,7 @@
 // shamelessly copied from https://github.com/videojs/videojs-vr/blob/main/src/plugin.js
 
 varying vec2 vUv;
-uniform sampler2D mapped;
+uniform sampler2D map;
 uniform bool equiangular;
 uniform float contCorrect;
 uniform vec2 faceWH;
@@ -15,5 +15,5 @@ void main() {
     vec2 p = (vUv - corner) / faceWHadj - .5;
     vec2 q = equiangular ? 2. / PI * atan(2. * p) + .5 : p + .5;
     vec2 eUv = corner + q * faceWHadj;
-    gl_FragColor = texture2D(mapped, eUv);
+    gl_FragColor = texture2D(map, eUv);
 }

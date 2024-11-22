@@ -24,7 +24,7 @@ export class GalleryComponent extends AbstractComponent {
 
     constructor(
         private readonly plugin: GalleryPlugin,
-        viewer: Viewer
+        viewer: Viewer,
     ) {
         super(viewer, {
             className: `psv-gallery ${CONSTANTS.CAPTURE_EVENTS_CLASS}`,
@@ -58,7 +58,7 @@ export class GalleryComponent extends AbstractComponent {
             },
             {
                 root: this.viewer.container,
-            }
+            },
         );
 
         this.items.addEventListener('wheel', this);
@@ -129,7 +129,7 @@ export class GalleryComponent extends AbstractComponent {
                 // prevent click on drag
                 const currentMouse = this.isAboveBreakpoint ? (e as MouseEvent).clientX : (e as MouseEvent).clientY;
                 if (Math.abs(this.state.initMouse - currentMouse) < 10) {
-                    const item = utils.getClosest(e.target as HTMLElement, `[data-${GALLERY_ITEM_DATA_KEY}]`);
+                    const item = utils.getMatchingTarget(e, `.psv-gallery-item`);
                     if (item) {
                         this.plugin.__click(item.dataset[GALLERY_ITEM_DATA]);
                     }

@@ -47,6 +47,7 @@
                         // navigationColor: 'rgba(200, 200, 0, 0.5)',
                         // position: 'bottom left',
                         // navigation: false,
+                        // resetPitch: false,
                         hotspots: [
                             { yaw: '0deg' },
                             { yaw: '90deg' },
@@ -75,7 +76,6 @@
 
                             m.push({
                                 id: 'polygon',
-                                // prettier-ignore
                                 polygonPixels: [
                                     [2941, 1413], [3042, 1402], [3222, 1419], [3433, 1463],
                                     [3480, 1505], [3438, 1538], [3241, 1543], [3041, 1555],
@@ -93,7 +93,6 @@
 
                             m.push({
                                 id: 'polyline',
-                                // prettier-ignore
                                 polylinePixels: [
                                     2478, 1635, 2184, 1747, 1674, 1953, 1166, 1852,
                                     709, 1669, 301, 1519, 94, 1399, 34, 1356,
@@ -124,6 +123,7 @@
                 backgroundSvg: compass.config.backgroundSvg,
                 position: compass.config.position.join(' '),
                 navigation: compass.config.navigation,
+                resetPitch: compass.config.resetPitch,
                 coneColor: compass.config.coneColor,
                 navigationColor: compass.config.navigationColor,
                 hotspotColor: compass.config.hotspotColor,
@@ -135,6 +135,7 @@
             addTextarea(gui, config, 'backgroundSvg', 10);
             gui.add(config, 'position', ['top left', 'top right', 'bottom left', 'bottom right']);
             gui.add(config, 'navigation');
+            gui.add(config, 'resetPitch');
             addColorPicker(gui, config, 'coneColor');
             addColorPicker(gui, config, 'navigationColor');
             addColorPicker(gui, config, 'hotspotColor');

@@ -12,12 +12,12 @@ const MENU_TEMPLATE = (buttons: AbstractButton[], title: string) => `
   <ul class="psv-panel-menu-list">
     ${buttons
         .map(
-            (button) => `
+            button => `
     <li data-psv-button="${button.id}" class="psv-panel-menu-item" tabindex="0">
       <span class="psv-panel-menu-item-icon">${button.content}</span>
       <span class="psv-panel-menu-item-label">${button.title}</span>
     </li>
-    `
+    `,
         )
         .join('')}
   </ul>
@@ -84,7 +84,7 @@ export class MenuButton extends AbstractButton {
             content: MENU_TEMPLATE(this.viewer.navbar.collapsed, this.viewer.config.lang.menu),
             noMargin: true,
             clickHandler: (target) => {
-                const li = target ? getClosest(target as HTMLElement, 'li') : undefined;
+                const li = target ? getClosest(target as HTMLElement, '.psv-panel-menu-item') : undefined;
                 const buttonId = li ? li.dataset[BUTTON_DATA] : undefined;
 
                 if (buttonId) {

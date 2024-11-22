@@ -23,7 +23,7 @@ export class CompassComponent extends AbstractComponent {
 
     constructor(
         viewer: Viewer,
-        private plugin: CompassPlugin
+        private plugin: CompassPlugin,
     ) {
         super(viewer, {});
 
@@ -168,7 +168,7 @@ export class CompassComponent extends AbstractComponent {
         if (mouseAngle !== null) {
             this.viewer.rotate({
                 yaw: mouseAngle,
-                pitch: 0, // TODO marker or hotspot vertical angle
+                pitch: this.config.resetPitch ? this.viewer.config.defaultPitch : this.viewer.getPosition().pitch,
             });
         }
     }
@@ -201,7 +201,7 @@ export class CompassComponent extends AbstractComponent {
 
         if (marker.isPoly()) {
             context.beginPath();
-            (marker.definition as Array<[number, number]>).forEach(([yaw, pitch], i) => {
+            (marker.definition[0] as Array<[number, number]>).forEach(([yaw, pitch], i) => {
                 const a = yaw - Math.PI / 2;
                 const d = (pitch + Math.PI / 2) / Math.PI;
                 const c = this.canvas.width / 2;
@@ -232,12 +232,11 @@ export class CompassComponent extends AbstractComponent {
         const r = Math.max(2, this.canvas.width * HOTSPOT_SIZE_RATIO);
 
         context.beginPath();
-        // prettier-ignore
         context.ellipse(
-            c + Math.cos(a) * c * d, c + Math.sin(a) * c * d, 
+            c + Math.cos(a) * c * d, c + Math.sin(a) * c * d,
             r, r,
             0, 0,
-            Math.PI * 2
+            Math.PI * 2,
         );
         context.fillStyle = color;
         context.fill();

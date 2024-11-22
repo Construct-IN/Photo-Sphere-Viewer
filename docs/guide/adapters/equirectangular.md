@@ -9,9 +9,11 @@ There is no need to declare the equirectangular adapter as it is the default one
 :::
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
-    adapter: [PhotoSphereViewer.EquirectangularAdapter, {
-        interpolateBackground: true,
+import { EquirectangularAdapter } from '@photo-sphere-viewer/core';
+
+const viewer = new Viewer({
+    adapter: [EquirectangularAdapter, {
+        // options
     }],
     panorama: 'path/panorama.jpg',
 });
@@ -25,24 +27,6 @@ const viewer = new PhotoSphereViewer.Viewer({
 -   default `true`
 
 Read real image size from XMP data, must be kept `true` if the panorama has been cropped after shot. This is used for [cropped panorama](#cropped-panorama).
-
-#### `backgroundColor`
-
--   type: `string`
--   default: `#000`
-
-Background color of the viewer, which will be visible when using cropped panoramas.
-
-#### `interpolateBackground`
-
--   type: `boolean`
--   default: `false`
-
-Interpolate the missing parts of cropped panorama with a blur effect.
-
-::: warning
-The interpolation is done asynchronously in a web worker, as such the panorama will be first be displayed without interpolation with only `canvasBackground` applied, then the interpolated image will be shown (takes about 1-3 seconds depending on the hardware).
-:::
 
 #### `resolution`
 
@@ -86,7 +70,7 @@ The data can also contains angular values:
 -   Initial View Pitch
 -   Initial Horizontal FOV
 
-![XMP_pano_pixels](../../images/XMP_pano_pixels.png)
+![XMP_pano_pixels](/images/XMP_pano_pixels.png)
 
 More information on [Google documentation](https://developers.google.com/streetview/spherical-metadata).
 
@@ -118,7 +102,7 @@ The XMP payload is as follow:
       <!-- initial view information -->
       <GPano:InitialViewHeadingDegrees>0</GPano:InitialViewHeadingDegrees>
       <GPano:InitialViewPitchDegrees>0</GPano:InitialViewPitchDegrees>
-      <GPano:InitialHorizontalFOVDegrees>0</GPano:InitialHorizontalFOVDegrees>
+      <GPano:InitialHorizontalFOVDegrees>60</GPano:InitialHorizontalFOVDegrees>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -136,16 +120,16 @@ exiftool -tagsfromfile data.xmp -all:all panorama.jpg
 You can also directly pass the values to Photo Sphere Viewer with the `panoData` parameter.
 
 ```js
-const viewer = new PhotoSphereViewer.Viewer({
+const viewer = new Viewer({
     container: 'viewer',
     panorama: 'path/to/panorama.jpg',
 
     // cropping information
     panoData: {
         fullWidth: 6000,
-        fullHeight: 3000,
-        croppedWidth: 4000,
-        croppedHeight: 2000,
+        fullHeight: 3000, // optional
+        croppedWidth: 4000, // optional
+        croppedHeight: 2000, // optional
         croppedX: 1000,
         croppedY: 500,
     },
@@ -164,9 +148,33 @@ const viewer = new PhotoSphereViewer.Viewer({
 });
 ```
 
+#### Default parameters
+
+If the image does not have a 2:1 ratio and no XMP data are found and no `panoData` is provided, a best effort is done to display the image without distortion. The exact algorithm is as follow:
+
+```js
+const fullWidth = Math.max(img.width, img.height * 2);
+const fullHeight = Math.round(fullWidth / 2);
+const croppedX = Math.round((fullWidth - img.width) / 2);
+const croppedY = Math.round((fullHeight - img.height) / 2);
+
+panoData = {
+    fullWidth: fullWidth,
+    fullHeight: fullHeight,
+    croppedWidth: img.width,
+    croppedHeight: img.height,
+    croppedX: croppedX,
+    croppedY: croppedY,
+};
+```
+
 ### Playground
 
 Use this demo to find the best values for your image.
+
+<script setup>
+import CropPlayground from '../../.vitepress/components/CropPlayground.vue';
+</script>
 
 <ClientOnly>
   <CropPlayground/>
